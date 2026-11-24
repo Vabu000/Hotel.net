@@ -12,5 +12,6 @@ namespace HotelCatalog.Domain.Entities
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public ICollection<RoomService> RoomServices { get; set; } = new List<RoomService>();
+        public RoomCategoryDetails? Details { get; set; }
     }
 }
