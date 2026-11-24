@@ -27,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HotelReservation.Bll\HotelReservation.Bll.csproj" />
     <ProjectReference Include="..\HotelPlatform.ServiceDefaults\HotelPlatform.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Platform.EventBus\Platform.EventBus.csproj" />
   </ItemGroup>
 	<ItemGroup>
 		<Protobuf Include="Protos\reservations.proto" GrpcServices="Server" />

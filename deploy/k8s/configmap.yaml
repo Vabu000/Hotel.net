@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+  namespace: hotel-platform
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  services__catalog-api__http__0: "http://catalog-api"
+  services__reservation-api__http__0: "http://reservation-api"
+  services__reviews-api__http__0: "http://reviews-api"
+  services__auth-server__http__0: "http://auth-server"
+  services__aggregator__http__0: "http://aggregator"
