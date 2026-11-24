@@ -21,6 +21,7 @@ public class RedisCacheService : ICacheService
 
     public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var db = _redis.GetDatabase();
         var value = await db.StringGetAsync(key);
 
@@ -36,6 +37,7 @@ public class RedisCacheService : ICacheService
 
     public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var db = _redis.GetDatabase();
         var json = JsonSerializer.Serialize(value, _jsonOptions);
 
@@ -45,6 +47,7 @@ public class RedisCacheService : ICacheService
 
     public async Task RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var db = _redis.GetDatabase();
         await db.KeyDeleteAsync(key);
         _logger.LogInformation("Redis cache REMOVE: {CacheKey}", key);

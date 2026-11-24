@@ -18,9 +18,17 @@ public abstract class BaseEntity
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime? UpdatedAt { get; protected set; }
 
+    [BsonElement("version")]
+    public int Version { get; private set; }
+
     protected void UpdateTimestamp()
     {
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void BumpVersion()
+    {
+        Version++;
     }
 
     [BsonIgnore]

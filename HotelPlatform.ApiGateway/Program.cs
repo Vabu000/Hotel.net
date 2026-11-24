@@ -5,9 +5,45 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 builder.Services.AddReverseProxy()
-    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
+    .AddServiceDiscoveryDestinationResolver();
 
 var app = builder.Build();
+
+app.UseServiceDefaults();
+
+app.Use(async (context, next) =>
+{
+    var target = ResolveTarget(context.Request.Path.Value);
+    var startedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+
+    try
+    {
+        await next();
+
+        if (target is not null)
+        {
+            app.Logger.LogInformation(
+                "Gateway routed {Method} {Path} to {TargetService}; status {StatusCode}; duration {DurationMs} ms",
+                context.Request.Method,
+                context.Request.Path,
+                target,
+                context.Response.StatusCode,
+                System.Diagnostics.Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds);
+        }
+    }
+    catch (Exception exception)
+    {
+        app.Logger.LogError(
+            exception,
+            "Gateway routing to {TargetService} failed for {Method} {Path} after {DurationMs} ms",
+            target ?? "unmatched",
+            context.Request.Method,
+            context.Request.Path,
+            System.Diagnostics.Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds);
+        throw;
+    }
+});
 
 app.MapGet("/", () => Results.Json(new
 {
@@ -18,25 +54,34 @@ app.MapGet("/", () => Results.Json(new
     availableRoutes = new[]
     {
         new { path = "/api/reviews", proxiedTo = "reviews-service" },
-        new { path = "/api/hotels", proxiedTo = "catalog-service" },
-        new { path = "/api/reservations", proxiedTo = "reservation-service" },
-        new { path = "/api/aggregator", proxiedTo = "aggregator" }
+        new { path = "/api/Service and /api/RoomCategory", proxiedTo = "catalog-service" },
+        new { path = "/api/Reservation", proxiedTo = "reservation-service" },
+        new { path = "/api/RoomAggregator", proxiedTo = "aggregator" }
     },
     testing = new
     {
         message = "Використовуй прямі HTTP запити",
         examples = new[]
         {
-            "GET https://localhost:5001/api/reviews",
-            "GET https://localhost:5001/api/hotels",
-            "GET https://localhost:5001/health"
+            "GET http://localhost:5000/api/reviews",
+            "GET http://localhost:5000/api/Reservation",
+            "GET http://localhost:5000/health"
         }
     },
     dashboard = "https://localhost:17050"
 })).ExcludeFromDescription();
 
-app.UseMiddleware<CorrelationIdMiddleware>();
-app.MapDefaultEndpoints();
 app.MapReverseProxy();
 
 app.Run();
+
+static string? ResolveTarget(string? path)
+{
+    if (path is null) return null;
+    if (path.StartsWith("/api/reviews", StringComparison.OrdinalIgnoreCase)) return "reviews-service";
+    if (path.StartsWith("/api/Reservation", StringComparison.OrdinalIgnoreCase)) return "reservation-service";
+    if (path.StartsWith("/api/Service", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/api/RoomCategory", StringComparison.OrdinalIgnoreCase)) return "catalog-service";
+    if (path.StartsWith("/api/RoomAggregator", StringComparison.OrdinalIgnoreCase)) return "aggregator";
+    return null;
+}

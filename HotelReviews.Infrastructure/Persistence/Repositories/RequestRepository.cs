@@ -1,4 +1,5 @@
 ﻿using HotelReviews.Domain.Entities;
+using HotelReviews.Domain.Exceptions;
 using HotelReviews.Domain.Interfaces;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
@@ -35,10 +36,17 @@ public class RequestRepository : IRequestRepository
 
     public async Task UpdateAsync(Request request, CancellationToken cancellationToken = default)
     {
-        await _collection.ReplaceOneAsync(
-            r => r.Id == request.Id,
+        var expectedVersion = request.Version;
+        request.BumpVersion();
+        var result = await _collection.ReplaceOneAsync(
+            r => r.Id == request.Id && r.Version == expectedVersion,
             request,
             cancellationToken: cancellationToken);
+
+        if (result.MatchedCount == 0)
+        {
+            throw new ConflictException($"Request '{request.Id}' has changed since it was read");
+        }
     }
 
     public async Task DeleteAsync(string id, CancellationToken cancellationToken = default)

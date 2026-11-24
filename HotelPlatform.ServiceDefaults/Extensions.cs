@@ -5,6 +5,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using HotelPlatform.ServiceDefaults;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using OpenTelemetry;
@@ -31,6 +32,9 @@ public static class Extensions
         builder.Services.AddHttpContextAccessor();
 
         builder.Services.AddTransient<CorrelationIdDelegatingHandler>();
+        builder.Services.AddTransient<ProblemDetailsResultFilter>();
+        builder.Services.Configure<MvcOptions>(options =>
+            options.Filters.AddService<ProblemDetailsResultFilter>());
 
         builder.Services.AddServiceDiscovery();
 
@@ -38,11 +42,17 @@ public static class Extensions
         {
             http.AddStandardResilienceHandler(options =>
             {
-                options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);  
-                options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(30);       
-                options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(60); 
+                options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(15);
+                options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(5);
+                options.Retry.MaxRetryAttempts = 2;
+                options.Retry.Delay = TimeSpan.FromMilliseconds(200);
+                options.Retry.UseJitter = true;
+                options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
+                options.CircuitBreaker.MinimumThroughput = 5;
+                options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(10);
             });
 
+            http.AddHttpMessageHandler<CorrelationIdDelegatingHandler>();
             http.AddServiceDiscovery();
         });
 
@@ -62,13 +72,19 @@ public static class Extensions
             {
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    .AddMeter("Polly")
+                    .AddMeter("HotelCatalog")
+                    .AddMeter("HotelPlatform.Aggregator")
+                    .AddMeter("HotelPlatform.Reservation");
             })
             .WithTracing(tracing =>
             {
                 tracing.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddGrpcClientInstrumentation();
+                    .AddGrpcClientInstrumentation()
+                    .AddSource("Npgsql")
+                    .AddSource("HotelReviews.MongoDB");
             });
 
         builder.AddOpenTelemetryExporters();
@@ -100,7 +116,9 @@ public static class Extensions
         Log.Logger = new LoggerConfiguration()
             .ReadFrom.Configuration(builder.Configuration)
             .Enrich.FromLogContext()
+            .Enrich.With(new ActivityTraceEnricher())
             .Enrich.WithProperty("Application", builder.Environment.ApplicationName)
+            .Enrich.WithProperty("ServiceName", builder.Environment.ApplicationName)
             .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName)
             .Enrich.WithProperty("MachineName", System.Environment.MachineName)
             .Enrich.WithThreadId()
@@ -121,18 +139,51 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        app.MapHealthChecks("/health");
+        app.MapHealthChecks("/health", new HealthCheckOptions
+        {
+            ResponseWriter = WriteHealthReport
+        });
+        app.MapHealthChecks("/health/live", new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("live")
+        });
         app.MapHealthChecks("/alive", new HealthCheckOptions
         {
             Predicate = r => r.Tags.Contains("live")
+        });
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("ready"),
+            ResponseWriter = WriteHealthReport
         });
 
         return app;
     }
 
+    private static async Task WriteHealthReport(HttpContext context, HealthReport report)
+    {
+        context.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            duration = report.TotalDuration,
+            checks = report.Entries.Select(entry => new
+            {
+                name = entry.Key,
+                status = entry.Value.Status.ToString(),
+                description = entry.Value.Description,
+                duration = entry.Value.Duration,
+                tags = entry.Value.Tags,
+                data = entry.Value.Data
+            })
+        });
+        await context.Response.WriteAsync(result);
+    }
+
     public static WebApplication UseServiceDefaults(this WebApplication app)
     {
         app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseMiddleware<ProblemDetailsExceptionMiddleware>();
 
         app.MapDefaultEndpoints();
 

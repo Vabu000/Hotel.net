@@ -3,6 +3,8 @@ using HotelReservation.Bll.Profiles;
 using HotelReservation.Bll.Services;
 using HotelReservation.Dal.Interfaces;
 using HotelReservation.Dal.Repositories;
+using HotelReservation.Api.HealthChecks;
+using HotelReservation.Dal.Database;
 using Microsoft.Extensions.Hosting;
 
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
@@ -21,6 +23,11 @@ builder.WebHost.ConfigureKestrel(options =>
 
 builder.Services.AddGrpc();
 builder.Services.AddGrpcHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<ReservationDatabaseHealthCheck>(
+        "reservation-database",
+        failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+        tags: ["ready"]);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -28,22 +35,27 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-builder.Services.AddScoped<IClientRepository, ClientRepository>();
-builder.Services.AddScoped<IReservationRepository, ReservationRepository>();
-builder.Services.AddScoped<IRoomRepository, RoomRepository>();
-builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddSingleton<ReservationDatabaseInitializer>();
+builder.Services.AddSingleton<ReservationMetrics>();
 
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IRoomService, RoomService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 
-// ✅ Add Event Publisher with MassTransit
-builder.Services.AddEventPublisher(builder);
+// The integration-test host replaces business services and does not need a broker connection.
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddEventPublisher(builder);
+}
 
 var app = builder.Build();
-app.MapDefaultEndpoints();
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    await app.Services.GetRequiredService<ReservationDatabaseInitializer>().InitializeAsync();
+}
+app.UseServiceDefaults();
 
 if (app.Environment.IsDevelopment())
 {
@@ -58,3 +70,5 @@ app.MapGrpcHealthChecksService();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

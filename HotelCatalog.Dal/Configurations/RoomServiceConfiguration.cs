@@ -8,11 +8,17 @@ namespace HotelCatalog.Dal.Configurations
     {
         public void Configure(EntityTypeBuilder<RoomService> builder)
         {
-            builder.ToTable("roomservices");
+            builder.ToTable("roomservices", table =>
+                table.HasCheckConstraint("ck_roomservices_additionalprice_nonnegative", "additionalprice >= 0"));
             builder.HasKey(rs => new { rs.CategoryId, rs.ServiceId });
 
             builder.Property(rs => rs.CategoryId).HasColumnName("categoryid");
             builder.Property(rs => rs.ServiceId).HasColumnName("serviceid");
+            builder.Property(rs => rs.AdditionalPrice)
+                .HasColumnName("additionalprice")
+                .HasPrecision(10, 2)
+                .HasDefaultValue(0m)
+                .IsRequired();
             builder.HasOne(rs => rs.RoomCategory)
                 .WithMany(rc => rc.RoomServices)
                 .HasForeignKey(rs => rs.CategoryId)

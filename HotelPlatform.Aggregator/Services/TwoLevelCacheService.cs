@@ -1,4 +1,6 @@
-﻿namespace HotelPlatform.Aggregator.Services;
+﻿using StackExchange.Redis;
+
+namespace HotelPlatform.Aggregator.Services;
 
 public class TwoLevelCacheService
 {
@@ -26,6 +28,7 @@ public class TwoLevelCacheService
         TimeSpan? l2Expiration = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var l1Value = await _l1Cache.GetAsync<T>(key, cancellationToken);
         sw.Stop();
@@ -57,7 +60,7 @@ public class TwoLevelCacheService
                 return l2Value;
             }
         }
-        catch (Exception ex)
+        catch (RedisException ex)
         {
             _logger.LogWarning(ex, "Redis (L2) cache unavailable for key: {CacheKey}, falling back to factory", key);
             
@@ -81,7 +84,7 @@ public class TwoLevelCacheService
                 sw.Stop();
                 _metrics.RecordCacheOperationDuration(sw.Elapsed.TotalMilliseconds, "Set", "L2");
             }
-            catch (Exception ex)
+            catch (RedisException ex)
             {
                 _logger.LogWarning(ex, "Failed to write to Redis (L2) cache for key: {CacheKey}, continuing without L2", key);
             }
@@ -100,7 +103,7 @@ public class TwoLevelCacheService
         {
             await _l2Cache.RemoveAsync(key, cancellationToken);
         }
-        catch (Exception ex)
+        catch (RedisException ex)
         {
             _logger.LogWarning(ex, "Failed to invalidate Redis (L2) cache for key: {CacheKey}, L1 invalidated successfully", key);
         }

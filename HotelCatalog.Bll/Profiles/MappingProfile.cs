@@ -8,6 +8,9 @@ namespace HotelCatalog.Bll.Profiles
     {
         public MappingProfile()
         {
+            CreateMap<RoomService, RoomServiceDto>()
+                .ForMember(dest => dest.ServiceName, opt => opt.MapFrom(src => src.Service.Name));
+
                 CreateMap<Service, ServiceDto>()
             .ForMember(dest => dest.RoomCategories, opt => opt.MapFrom(src =>
                 src.RoomServices.Select(rs => rs.RoomCategory)))
@@ -16,8 +19,13 @@ namespace HotelCatalog.Bll.Profiles
             CreateMap<RoomCategory, RoomCategoryDto>()
                 .ForMember(dest => dest.Services, opt => opt.MapFrom(src =>
                     src.RoomServices.Select(rs => rs.Service)))
+                .ForMember(dest => dest.ServiceAssignments, opt => opt.MapFrom(src => src.RoomServices))
                 .ForMember(dest => dest.ServiceCount, opt => opt.MapFrom(src =>
                     src.RoomServices.Count))
+                .ForMember(dest => dest.MaxOccupancy, opt => opt.MapFrom(src =>
+                    src.Details == null ? (int?)null : src.Details.MaxOccupancy))
+                .ForMember(dest => dest.AreaSquareMeters, opt => opt.MapFrom(src =>
+                    src.Details == null ? (decimal?)null : src.Details.AreaSquareMeters))
                 .MaxDepth(2); 
 
             CreateMap<Service, ServiceDto>()
@@ -30,12 +38,6 @@ namespace HotelCatalog.Bll.Profiles
 
             CreateMap<UpdateServiceDto, Service>()
                 .ForMember(dest => dest.RoomServices, opt => opt.Ignore());
-
-            CreateMap<RoomCategory, RoomCategoryDto>()
-                .ForMember(dest => dest.Services, opt => opt.MapFrom(src =>
-                    src.RoomServices.Select(rs => rs.Service)))
-                .ForMember(dest => dest.ServiceCount, opt => opt.MapFrom(src =>
-                    src.RoomServices.Count));
 
             CreateMap<CreateRoomCategoryDto, RoomCategory>()
                 .ForMember(dest => dest.CategoryId, opt => opt.Ignore())

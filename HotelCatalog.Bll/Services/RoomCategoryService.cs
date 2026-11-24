@@ -16,43 +16,58 @@ namespace HotelCatalog.Bll.Services
         private readonly IMapper _mapper;
         private readonly ILogger<RoomCategoryService> _logger;
         private readonly IEventPublisher _eventPublisher;
+        private readonly ICatalogCache _cache;
 
         public RoomCategoryService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             ILogger<RoomCategoryService> logger,
-            IEventPublisher eventPublisher)
+            IEventPublisher eventPublisher,
+            ICatalogCache cache)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _logger = logger;
             _eventPublisher = eventPublisher;
+            _cache = cache;
         }
 
         public async Task<RoomCategoryDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            var category = await _unitOfWork.RoomCategories.GetByIdAsync(id, cancellationToken);
+            var category = await _unitOfWork.RoomCategories.GetCategoryByIdAsync(id, cancellationToken);
             return category != null ? _mapper.Map<RoomCategoryDto>(category) : null;
         }
 
         public async Task<RoomCategoryDto?> GetByIdWithServicesAsync(int id, CancellationToken cancellationToken = default)
         {
-            var category = await _unitOfWork.RoomCategories.GetCategoryByIdAsync(id, cancellationToken);
+            return await _cache.GetOrCreateAsync(
+                $"catalog:room-category:{id}",
+                async () =>
+                {
+                    var category = await _unitOfWork.RoomCategories.GetCategoryByIdAsync(id, cancellationToken);
+                    if (category == null)
+                    {
+                        return null;
+                    }
 
-            if (category == null)
-            {
-                return null;
-            }
-
-            await _unitOfWork.RoomCategories.LoadServicesAsync(category, cancellationToken);
-
-            return _mapper.Map<RoomCategoryDto>(category);
+                    await _unitOfWork.RoomCategories.LoadServicesAsync(category, cancellationToken);
+                    return _mapper.Map<RoomCategoryDto>(category);
+                },
+                cancellationToken);
         }
 
         public async Task<IEnumerable<RoomCategoryDto>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            var categories = await _unitOfWork.RoomCategories.GetAllAsync(cancellationToken);
-            return _mapper.Map<IEnumerable<RoomCategoryDto>>(categories);
+            var cached = await _cache.GetOrCreateAsync(
+                "catalog:room-categories:all",
+                async () =>
+                {
+                    var categories = await _unitOfWork.RoomCategories.GetAllAsync(cancellationToken);
+                    return _mapper.Map<List<RoomCategoryDto>>(categories);
+                },
+                cancellationToken);
+
+            return cached is null ? Enumerable.Empty<RoomCategoryDto>() : cached;
         }
 
         public async Task<IEnumerable<RoomCategoryDto>> GetCategoriesWithServiceCountAsync(CancellationToken cancellationToken = default)
@@ -75,6 +90,7 @@ namespace HotelCatalog.Bll.Services
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Room category created with ID: {CategoryId}", category.CategoryId);
+            await _cache.InvalidateRoomCatalogAsync(cancellationToken);
 
             // ✅ Publish RoomCategoryCreatedEvent to RabbitMQ
             var categoryEvent = new RoomCategoryCreatedEvent(
@@ -91,7 +107,7 @@ namespace HotelCatalog.Bll.Services
 
         public async Task<RoomCategoryDto> UpdateAsync(UpdateRoomCategoryDto dto, CancellationToken cancellationToken = default)
         {
-            var category = await _unitOfWork.RoomCategories.GetByIdAsync(dto.CategoryId, cancellationToken);
+            var category = await _unitOfWork.RoomCategories.GetCategoryByIdAsync(dto.CategoryId, cancellationToken);
 
             if (category == null)
             {
@@ -101,6 +117,7 @@ namespace HotelCatalog.Bll.Services
             _mapper.Map(dto, category);
             _unitOfWork.RoomCategories.Update(category);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cache.InvalidateRoomCatalogAsync(cancellationToken);
 
             _logger.LogInformation("Room category updated with ID: {CategoryId}", category.CategoryId);
 
@@ -118,6 +135,7 @@ namespace HotelCatalog.Bll.Services
 
             _unitOfWork.RoomCategories.Delete(category);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cache.InvalidateRoomCatalogAsync(cancellationToken);
 
             _logger.LogInformation("Room category deleted with ID: {CategoryId}", id);
 
@@ -137,11 +155,13 @@ namespace HotelCatalog.Bll.Services
             var roomService = new RoomService
             {
                 CategoryId = dto.CategoryId,
-                ServiceId = dto.ServiceId
+                ServiceId = dto.ServiceId,
+                AdditionalPrice = dto.AdditionalPrice
             };
 
             await _unitOfWork.Repository<RoomService>().AddAsync(roomService, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cache.InvalidateRoomCatalogAsync(cancellationToken);
 
             _logger.LogInformation("Service {ServiceId} assigned to category {CategoryId}", dto.ServiceId, dto.CategoryId);
 
@@ -160,6 +180,7 @@ namespace HotelCatalog.Bll.Services
 
             _unitOfWork.Repository<RoomService>().Delete(roomService);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cache.InvalidateRoomCatalogAsync(cancellationToken);
 
             _logger.LogInformation("Service {ServiceId} removed from category {CategoryId}", serviceId, categoryId);
 

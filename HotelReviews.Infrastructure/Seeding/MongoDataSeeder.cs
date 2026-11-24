@@ -1,6 +1,7 @@
 ﻿using HotelReviews.Domain.Entities;
 using HotelReviews.Infrastructure.Persistence;
 using Microsoft.Extensions.Logging;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace HotelReviews.Infrastructure.Seeding;
@@ -21,6 +22,7 @@ public class MongoDataSeeder : IDataSeeder
 
         await SeedReviewsAsync(cancellationToken);
         await SeedRequestsAsync(cancellationToken);
+        await SeedDiscussionsAsync(cancellationToken);
 
         _logger.LogInformation("MongoDB seeding completed");
     }
@@ -99,5 +101,25 @@ public class MongoDataSeeder : IDataSeeder
         await collection.InsertManyAsync(requests, cancellationToken: cancellationToken);
 
         _logger.LogInformation($"Додано {requests.Count} запитів до колекції Requests");
+    }
+
+    private async Task SeedDiscussionsAsync(CancellationToken cancellationToken)
+    {
+        var collection = _context.Discussions;
+        if (await collection.CountDocumentsAsync(_ => true, cancellationToken: cancellationToken) > 0)
+        {
+            _logger.LogInformation("Discussions collection already contains data. Skipping seeding.");
+            return;
+        }
+
+        var discussion = Discussion.Create(101, "Питання щодо відгуку", "65a000000000000000000001");
+        discussion.AddMessage(1, "Чи є в номері тихе місце для роботи?");
+        discussion.AddMessage(2, "Так, у номері є робочий стіл біля вікна.");
+
+        var serviceQuestion = Discussion.Create(102, "Питання про сніданок");
+        serviceQuestion.AddMessage(3, "О котрій годині подають сніданок?");
+        serviceQuestion.SetMetadata("priority", new BsonInt32(2));
+
+        await collection.InsertManyAsync([discussion, serviceQuestion], cancellationToken: cancellationToken);
     }
 }

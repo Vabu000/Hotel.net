@@ -19,23 +19,36 @@ public class GrpcReviewsService : ReviewsService.ReviewsServiceBase
         _logger = logger;
     }
 
-    public override Task<GetReviewsByRoomResponse> GetReviewsByRoom(
+    public override async Task<GetReviewsByRoomResponse> GetReviewsByRoom(
      GetReviewsByRoomRequest request,
      ServerCallContext context)
     {
-        _logger.LogInformation("✅ gRPC GetReviewsByRoom called: RoomId={RoomId}", request.RoomId);
+        var page = Math.Max(1, request.Page);
+        var pageSize = request.PageSize == 0 ? 10 : Math.Clamp(request.PageSize, 1, 100);
+        _logger.LogInformation("gRPC GetReviewsByRoom called: RoomId={RoomId}, Page={Page}", request.RoomId, page);
+
+        var result = await _mediator.Send(
+            new GetReviewsByRoomQuery(
+                request.RoomId,
+                page,
+                pageSize,
+                request.HasMinRating ? request.MinRating : null,
+                request.HasIsVerified ? request.IsVerified : null,
+                request.HasIsApproved ? request.IsApproved : null),
+            context.CancellationToken);
 
         var response = new GetReviewsByRoomResponse
         {
-            Page = 1,
-            PageSize = 10,
-            TotalCount = 0,
-            TotalPages = 0,
-            HasPreviousPage = false,
-            HasNextPage = false
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalCount = result.TotalCount,
+            TotalPages = result.TotalPages,
+            HasPreviousPage = result.HasPreviousPage,
+            HasNextPage = result.HasNextPage
         };
 
-        return Task.FromResult(response);
+        response.Items.AddRange(result.Items.Select(MapToGrpcMessage));
+        return response;
     }
 
     public override async Task<ReviewResponse> GetReviewById(

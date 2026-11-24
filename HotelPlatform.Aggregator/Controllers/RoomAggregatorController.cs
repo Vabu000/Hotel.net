@@ -39,11 +39,21 @@ public class RoomAggregatorController : ControllerBase
     [HttpGet("room/{roomId}")]
     [ProducesResponseType(typeof(RoomDetailsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<RoomDetailsDto>> GetRoomDetails(
     int roomId,
     CancellationToken cancellationToken)
     {
+        if (roomId <= 0)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid room identifier",
+                detail: "The room identifier must be greater than zero.");
+        }
+
         using var _ = _metrics.TrackActiveRequest();
 
         var cacheKey = $"room-details:{roomId}";
@@ -65,37 +75,65 @@ public class RoomAggregatorController : ControllerBase
 
             if (result == null)
             {
-                _metrics.RecordAggregationDuration(sw.Elapsed.TotalMilliseconds, roomId, success: false);
-                return NotFound($"Room with ID {roomId} not found");
+                _metrics.RecordAggregationDuration(sw.Elapsed.TotalMilliseconds, success: false);
+                return Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Room not found",
+                    detail: $"Room with ID {roomId} was not found.");
             }
 
-            _metrics.RecordRoomView(roomId);
-            _metrics.RecordAggregationDuration(sw.Elapsed.TotalMilliseconds, roomId, success: true);
+            if (result.IsPartial)
+            {
+                await _cache.InvalidateAsync(cacheKey, cancellationToken);
+            }
+
+            _metrics.RecordRoomView();
+            _metrics.RecordAggregationDuration(sw.Elapsed.TotalMilliseconds, success: !result.IsPartial);
 
             return Ok(result);
         }
         catch (RpcException ex) when (ex.StatusCode == GrpcStatusCode.NotFound)
         {
             sw.Stop();
-            _metrics.RecordAggregationDuration(sw.Elapsed.TotalMilliseconds, roomId, success: false);
+            _metrics.RecordAggregationDuration(sw.Elapsed.TotalMilliseconds, success: false);
 
             _logger.LogWarning("Room {RoomId} not found in one of the services", roomId);
-            return NotFound($"Room with ID {roomId} not found");
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Room not found",
+                detail: $"Room with ID {roomId} was not found.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (RpcException ex)
+        {
+            sw.Stop();
+            _metrics.RecordAggregationDuration(sw.Elapsed.TotalMilliseconds, success: false);
+            _logger.LogError(ex, "Required downstream service failed for room {RoomId}", roomId);
+
+            var statusCode = ex.StatusCode is GrpcStatusCode.Unavailable or GrpcStatusCode.DeadlineExceeded
+                ? StatusCodes.Status503ServiceUnavailable
+                : StatusCodes.Status502BadGateway;
+
+            return Problem(
+                statusCode: statusCode,
+                title: statusCode == StatusCodes.Status503ServiceUnavailable
+                    ? "Room service unavailable"
+                    : "Room service error",
+                detail: "The room details service could not complete the request.");
         }
         catch (Exception ex)
         {
             sw.Stop();
-            _metrics.RecordAggregationDuration(sw.Elapsed.TotalMilliseconds, roomId, success: false);
+            _metrics.RecordAggregationDuration(sw.Elapsed.TotalMilliseconds, success: false);
 
-            _logger.LogError(ex, "❌ Error aggregating data for room {RoomId}: {Message}", roomId, ex.Message);
-            Console.WriteLine($"❌ AGGREGATOR ERROR: {ex.Message}");
-            Console.WriteLine($"❌ Stack Trace: {ex.StackTrace}");
-            if (ex.InnerException != null)
-            {
-                Console.WriteLine($"❌ Inner Exception: {ex.InnerException.Message}");
-            }
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                $"Error: {ex.Message}");
+            _logger.LogError(ex, "Error aggregating data for room {RoomId}", roomId);
+            return Problem(
+                statusCode: StatusCodes.Status500InternalServerError,
+                title: "Aggregation failed",
+                detail: "The room details could not be assembled.");
         }
     }
 
@@ -123,32 +161,13 @@ public class RoomAggregatorController : ControllerBase
             return null;
         }
 
-        var averageRating = reviews.Any()
-            ? reviews.Average(r => r.Rating)
-            : 0;
-
-        var isAvailable = !reservations.Any(r =>
-            r.Status == "Confirmed" || r.Status == "CheckedIn");
-
-        return new RoomDetailsDto
-        {
-            RoomId = room.RoomId,
-            RoomNumber = room.RoomNumber,
-            Capacity = room.Capacity,
-            Price = room.Price,
-            Category = category,
-            Reviews = reviews,
-            AverageRating = Math.Round(averageRating, 2),
-            TotalReviews = reviews.Count,
-            Reservations = reservations,
-            IsAvailable = isAvailable
-        };
+        return RoomDetailsAssembler.Assemble(room, category, reviews, reservations);
     }
 
     /// <summary>
     /// gRPC: отримати інфо про кімнату з Reservation сервісу
     /// </summary>
-    private async Task<RoomDetailsDto?> GetRoomInfoAsync(int roomId, CancellationToken cancellationToken)
+    private async Task<RoomDetailsDto> GetRoomInfoAsync(int roomId, CancellationToken cancellationToken)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
@@ -184,7 +203,9 @@ public class RoomAggregatorController : ControllerBase
     /// <summary>
     /// gRPC: отримати категорію кімнати з Catalog сервісу
     /// </summary>
-    private async Task<RoomCategoryInfo?> GetRoomCategoryAsync(int roomId, CancellationToken cancellationToken)
+    private async Task<AggregationDependencyResult<RoomCategoryInfo>> GetRoomCategoryAsync(
+        int roomId,
+        CancellationToken cancellationToken)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
@@ -198,7 +219,7 @@ public class RoomAggregatorController : ControllerBase
 
             _logger.LogInformation("✅ gRPC: Got category for room {RoomId}", roomId);
 
-            return new RoomCategoryInfo
+            return new AggregationDependencyResult<RoomCategoryInfo>(new RoomCategoryInfo
             {
                 CategoryId = response.Category.CategoryId,
                 Name = response.Category.Name,
@@ -210,7 +231,7 @@ public class RoomAggregatorController : ControllerBase
                     Description = s.Description,
                     Price = (decimal)s.Price
                 }).ToList()
-            };
+            }, IsAvailable: true);
         }
         catch (RpcException ex)
         {
@@ -219,14 +240,16 @@ public class RoomAggregatorController : ControllerBase
             _metrics.RecordGrpcCallDuration(sw.Elapsed.TotalMilliseconds, "catalog-service", "GetRoomCategoryByRoomId", success: false);
 
             _logger.LogWarning("⚠️ gRPC: Failed to get category for room {RoomId}: {Status}", roomId, ex.StatusCode);
-            return null;
+            return new AggregationDependencyResult<RoomCategoryInfo>(null, IsAvailable: false);
         }
     }
 
     /// <summary>
     /// gRPC: отримати відгуки з Reviews сервісу
     /// </summary>
-    private async Task<List<ReviewInfo>> GetReviewsAsync(int roomId, CancellationToken cancellationToken)
+    private async Task<AggregationDependencyResult<List<ReviewInfo>>> GetReviewsAsync(
+        int roomId,
+        CancellationToken cancellationToken)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
@@ -248,7 +271,7 @@ public class RoomAggregatorController : ControllerBase
             _logger.LogInformation("✅ gRPC: Got {Count} reviews for room {RoomId}",
                 response.Items.Count, roomId);
 
-            return response.Items.Select(r => new ReviewInfo
+            return new AggregationDependencyResult<List<ReviewInfo>>(response.Items.Select(r => new ReviewInfo
             {
                 Id = r.Id,
                 ClientId = r.ClientId,
@@ -257,7 +280,7 @@ public class RoomAggregatorController : ControllerBase
                 Date = DateTime.Parse(r.Date),
                 IsVerified = r.IsVerified,
                 IsApproved = r.IsApproved
-            }).ToList();
+            }).ToList(), IsAvailable: true);
         }
         catch (RpcException ex)
         {
@@ -266,14 +289,16 @@ public class RoomAggregatorController : ControllerBase
             _metrics.RecordGrpcCallDuration(sw.Elapsed.TotalMilliseconds, "reviews-service", "GetReviewsByRoom", success: false);
 
             _logger.LogWarning("⚠️ gRPC: Failed to get reviews for room {RoomId}: {Status}", roomId, ex.StatusCode);
-            return new List<ReviewInfo>();
+            return new AggregationDependencyResult<List<ReviewInfo>>(null, IsAvailable: false);
         }
     }
 
     /// <summary>
     /// gRPC: отримати бронювання з Reservation сервісу
     /// </summary>
-    private async Task<List<ReservationInfo>> GetReservationsAsync(int roomId, CancellationToken cancellationToken)
+    private async Task<AggregationDependencyResult<List<ReservationInfo>>> GetReservationsAsync(
+        int roomId,
+        CancellationToken cancellationToken)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
@@ -294,7 +319,7 @@ public class RoomAggregatorController : ControllerBase
             _logger.LogInformation("✅ gRPC: Got {Count} reservations for room {RoomId}",
                 response.Items.Count, roomId);
 
-            return response.Items.Select(r => new ReservationInfo
+            return new AggregationDependencyResult<List<ReservationInfo>>(response.Items.Select(r => new ReservationInfo
             {
                 ReservationId = r.Id,
                 ClientId = r.ClientId,
@@ -302,7 +327,7 @@ public class RoomAggregatorController : ControllerBase
                 CheckOutDate = DateTime.Parse(r.CheckOutDate),
                 Status = r.Status,
                 TotalPrice = (decimal)r.TotalPrice
-            }).ToList();
+            }).ToList(), IsAvailable: true);
         }
         catch (RpcException ex)
         {
@@ -311,7 +336,7 @@ public class RoomAggregatorController : ControllerBase
             _metrics.RecordGrpcCallDuration(sw.Elapsed.TotalMilliseconds, "reservation-service", "GetReservationsByRoom", success: false);
 
             _logger.LogWarning("⚠️ gRPC: Failed to get reservations for room {RoomId}: {Status}", roomId, ex.StatusCode);
-            return new List<ReservationInfo>();
+            return new AggregationDependencyResult<List<ReservationInfo>>(null, IsAvailable: false);
         }
     }
 

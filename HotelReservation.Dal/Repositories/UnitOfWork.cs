@@ -8,34 +8,27 @@ namespace HotelReservation.Dal.Repositories
 {
     public class UnitOfWork : IUnitOfWork
     {
-        private readonly IConfiguration _configuration;
-        private readonly IClientRepository _clients;
-        private readonly IReservationRepository _reservations;
-        private readonly IRoomRepository _rooms;
-        private readonly IPaymentRepository _payments;
-
-        private NpgsqlConnection? _connection;
+        private readonly NpgsqlConnection _connection;
         private NpgsqlTransaction? _transaction;
         private bool _disposed;
 
         public UnitOfWork(
             IConfiguration configuration,
-            IClientRepository clientRepository,
-            IReservationRepository reservationRepository,
-            IRoomRepository roomRepository,
-            IPaymentRepository paymentRepository)
+            ILoggerFactory loggerFactory)
         {
-            _configuration = configuration;
-            _clients = clientRepository;
-            _reservations = reservationRepository;
-            _rooms = roomRepository;
-            _payments = paymentRepository;
+            var connectionString = configuration.GetConnectionString("HotelReservationsDB")
+                ?? throw new InvalidOperationException("Connection string 'HotelReservationsDB' is missing");
+            _connection = new NpgsqlConnection(connectionString);
+            Clients = new ClientRepository(_connection, () => _transaction, loggerFactory.CreateLogger<ClientRepository>());
+            Reservations = new ReservationRepository(_connection, () => _transaction, loggerFactory.CreateLogger<ReservationRepository>());
+            Rooms = new RoomRepository(_connection, () => _transaction, loggerFactory.CreateLogger<RoomRepository>());
+            Payments = new PaymentRepository(_connection, () => _transaction, loggerFactory.CreateLogger<PaymentRepository>());
         }
 
-        public IClientRepository Clients => _clients;
-        public IReservationRepository Reservations => _reservations;
-        public IRoomRepository Rooms => _rooms;
-        public IPaymentRepository Payments => _payments;
+        public IClientRepository Clients { get; }
+        public IReservationRepository Reservations { get; }
+        public IRoomRepository Rooms { get; }
+        public IPaymentRepository Payments { get; }
 
         public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
         {
@@ -44,11 +37,7 @@ namespace HotelReservation.Dal.Repositories
                 throw new InvalidOperationException("Transaction already started");
             }
 
-            var connectionString = _configuration.GetConnectionString("HotelReservationsDB") ??
-                throw new ArgumentNullException("Connection string not found");
-
-            _connection = new NpgsqlConnection(connectionString);
-            await _connection.OpenAsync(cancellationToken);
+            await EnsureOpenAsync(cancellationToken);
             _transaction = await _connection.BeginTransactionAsync(cancellationToken);
         }
 
@@ -59,26 +48,20 @@ namespace HotelReservation.Dal.Repositories
                 throw new InvalidOperationException("No transaction to commit");
             }
 
+            var transaction = _transaction;
             try
             {
-                await _transaction.CommitAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
             }
             catch
             {
-                await RollbackAsync(cancellationToken);
+                await transaction.RollbackAsync(cancellationToken);
                 throw;
             }
             finally
             {
-                await _transaction.DisposeAsync();
+                await transaction.DisposeAsync();
                 _transaction = null;
-
-                if (_connection != null)
-                {
-                    await _connection.CloseAsync();
-                    await _connection.DisposeAsync();
-                    _connection = null;
-                }
             }
         }
 
@@ -86,24 +69,26 @@ namespace HotelReservation.Dal.Repositories
         {
             if (_transaction == null)
             {
-                throw new InvalidOperationException("No transaction to rollback");
+                return;
             }
 
+            var transaction = _transaction;
             try
             {
-                await _transaction.RollbackAsync(cancellationToken);
+                await transaction.RollbackAsync(cancellationToken);
             }
             finally
             {
-                await _transaction.DisposeAsync();
+                await transaction.DisposeAsync();
                 _transaction = null;
+            }
+        }
 
-                if (_connection != null)
-                {
-                    await _connection.CloseAsync();
-                    await _connection.DisposeAsync();
-                    _connection = null;
-                }
+        private async Task EnsureOpenAsync(CancellationToken cancellationToken)
+        {
+            if (_connection.State != ConnectionState.Open)
+            {
+                await _connection.OpenAsync(cancellationToken);
             }
         }
 
@@ -123,7 +108,7 @@ namespace HotelReservation.Dal.Repositories
             if (!_disposed && disposing)
             {
                 _transaction?.Dispose();
-                _connection?.Dispose();
+                _connection.Dispose();
                 _disposed = true;
             }
         }

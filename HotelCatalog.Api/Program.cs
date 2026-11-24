@@ -9,6 +9,8 @@ using HotelCatalog.Bll.Interfaces;
 using HotelCatalog.Bll.Services;
 using HotelCatalog.Bll.Profiles;
 using HotelCatalog.Api.Middleware;
+using HotelCatalog.Api.Services;
+using HotelCatalog.Api.HealthChecks;
 
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
@@ -26,6 +28,13 @@ builder.WebHost.ConfigureKestrel(options =>
 
 builder.Services.AddDbContext<HotelCatalogDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("HotelCatalogDB")));
+
+builder.Services.AddMemoryCache(options => options.SizeLimit = 10_000);
+builder.AddRedisClient("redis");
+builder.Services.AddSingleton<CatalogMetrics>();
+builder.Services.AddSingleton<CatalogCacheService>();
+builder.Services.AddSingleton<ICatalogCache>(services => services.GetRequiredService<CatalogCacheService>());
+builder.Services.AddHostedService(services => services.GetRequiredService<CatalogCacheService>());
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
@@ -47,6 +56,15 @@ builder.Services.AddEventPublisher(builder);
 
 builder.Services.AddGrpc();
 builder.Services.AddGrpcHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<CatalogDatabaseHealthCheck>(
+        "catalog-database",
+        failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+        tags: ["ready"])
+    .AddCheck<CatalogRedisHealthCheck>(
+        "catalog-redis-cache",
+        failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
+        tags: ["cache", "redis", "ready"]);
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -77,7 +95,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.MapDefaultEndpoints();
+app.UseServiceDefaults();
 
 using (var scope = app.Services.CreateScope())
 {

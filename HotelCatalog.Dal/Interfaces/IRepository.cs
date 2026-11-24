@@ -7,7 +7,7 @@ namespace HotelCatalog.Dal.Interfaces
     {
         Task<T?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
         Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default);
-        Task AddAsync(T entity, CancellationToken cancellationToken = default);
+        new Task AddAsync(T entity, CancellationToken cancellationToken = default);
         void Update(T entity);
         void Delete(T entity);
         Task<IEnumerable<T>> FindAsync(

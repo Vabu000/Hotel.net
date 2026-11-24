@@ -17,7 +17,6 @@ public class MetricsService
     private readonly Histogram<double> _cacheOperationDurationHistogram;
 
     private long _activeRequests = 0;
-    private readonly object _activeRequestsLock = new();
 
     public MetricsService(IMeterFactory meterFactory)
     {
@@ -72,12 +71,9 @@ public class MetricsService
 
     // ===== Counter Methods =====
 
-    public void RecordRoomView(int roomId, string? cacheStatus = null)
+    public void RecordRoomView(string? cacheStatus = null)
     {
-        var tags = new TagList
-        {
-            { "room.id", roomId }
-        };
+        var tags = new TagList();
 
         if (!string.IsNullOrEmpty(cacheStatus))
         {
@@ -121,11 +117,10 @@ public class MetricsService
 
     // ===== Histogram Methods =====
 
-    public void RecordAggregationDuration(double durationMs, int roomId, bool success)
+    public void RecordAggregationDuration(double durationMs, bool success)
     {
         _aggregationDurationHistogram.Record(durationMs, new TagList
         {
-            { "room.id", roomId },
             { "status", success ? "success" : "failure" }
         });
     }

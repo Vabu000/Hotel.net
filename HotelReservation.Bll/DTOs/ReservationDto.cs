@@ -13,6 +13,7 @@ namespace HotelReservation.Bll.DTOs
         public int ReservationId { get; set; }
         public int ClientId { get; set; }
         public int RoomId { get; set; }
+        public decimal? RoomRateSnapshot { get; set; }
 
         [Required(ErrorMessage = "Check-in date is required")]
         public DateTime CheckInDate { get; set; }

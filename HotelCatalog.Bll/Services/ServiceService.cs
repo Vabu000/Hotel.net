@@ -13,12 +13,18 @@ namespace HotelCatalog.Bll.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly ILogger<ServiceService> _logger;
+        private readonly ICatalogCache _cache;
 
-        public ServiceService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<ServiceService> logger)
+        public ServiceService(
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            ILogger<ServiceService> logger,
+            ICatalogCache cache)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _logger = logger;
+            _cache = cache;
         }
 
         public async Task<ServiceDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
@@ -62,6 +68,7 @@ namespace HotelCatalog.Bll.Services
 
             await _unitOfWork.Services.AddAsync(service, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cache.InvalidateRoomCatalogAsync(cancellationToken);
 
             _logger.LogInformation("Service created with ID: {ServiceId}", service.ServiceId);
 
@@ -80,6 +87,7 @@ namespace HotelCatalog.Bll.Services
             _mapper.Map(dto, service);
             _unitOfWork.Services.Update(service);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cache.InvalidateRoomCatalogAsync(cancellationToken);
 
             _logger.LogInformation("Service updated with ID: {ServiceId}", service.ServiceId);
 
@@ -97,6 +105,7 @@ namespace HotelCatalog.Bll.Services
 
             _unitOfWork.Services.Delete(service);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cache.InvalidateRoomCatalogAsync(cancellationToken);
 
             _logger.LogInformation("Service deleted with ID: {ServiceId}", id);
 

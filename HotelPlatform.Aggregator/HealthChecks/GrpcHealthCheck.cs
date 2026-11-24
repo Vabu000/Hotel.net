@@ -23,23 +23,15 @@ public class GrpcHealthCheck : IHealthCheck
     {
         try
         {
-            var channel = Grpc.Net.Client.GrpcChannel.ForAddress(_grpcServiceUrl, new Grpc.Net.Client.GrpcChannelOptions
-            {
-                HttpHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-                }
-            });
+            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(_grpcServiceUrl);
 
             var healthClient = new Health.HealthClient(channel);
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(5));
+            cts.CancelAfter(TimeSpan.FromSeconds(2));
 
             var request = new HealthCheckRequest { Service = "" };
             var response = await healthClient.CheckAsync(request, cancellationToken: cts.Token);
-
-            await channel.ShutdownAsync();
 
             return response.Status switch
             {
@@ -60,7 +52,7 @@ public class GrpcHealthCheck : IHealthCheck
         {
             _logger.LogError(ex, "{ServiceName} health check failed: {Message}", _serviceName, ex.Message);
             return HealthCheckResult.Unhealthy(
-                $"{_serviceName} is unreachable: {ex.Message}",
+                $"{_serviceName} is unreachable",
                 ex);
         }
     }
@@ -69,22 +61,14 @@ public class GrpcHealthCheck : IHealthCheck
     {
         try
         {
-            var channel = Grpc.Net.Client.GrpcChannel.ForAddress(_grpcServiceUrl, new Grpc.Net.Client.GrpcChannelOptions
-            {
-                HttpHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-                }
-            });
+            using var channel = Grpc.Net.Client.GrpcChannel.ForAddress(_grpcServiceUrl);
 
             await channel.ConnectAsync(cancellationToken);
             var state = channel.State;
 
-            await channel.ShutdownAsync();
-
-            return state == Grpc.Core.ConnectivityState.Ready || state == Grpc.Core.ConnectivityState.Idle
+            return state == Grpc.Core.ConnectivityState.Ready
                 ? HealthCheckResult.Healthy($"{_serviceName} is reachable (connectivity check)")
-                : HealthCheckResult.Degraded($"{_serviceName} connectivity: {state}");
+                : HealthCheckResult.Degraded($"{_serviceName} connectivity state is {state}");
         }
         catch (Exception ex)
         {

@@ -10,6 +10,7 @@ namespace HotelCatalog.Domain.Entities
     {
         public int CategoryId { get; set; }
         public int ServiceId { get; set; }
+        public decimal AdditionalPrice { get; set; }
         public RoomCategory RoomCategory { get; set; } = null!;
         public Service Service { get; set; } = null!;
     }

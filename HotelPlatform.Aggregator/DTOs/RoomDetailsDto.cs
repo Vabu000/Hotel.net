@@ -15,6 +15,9 @@ public class RoomDetailsDto
 
     public List<ReservationInfo> Reservations { get; set; } = new();
     public bool IsAvailable { get; set; }
+    public bool AvailabilityKnown { get; set; }
+    public bool IsPartial { get; set; }
+    public List<string> UnavailableSections { get; set; } = new();
 }
 
 public class RoomCategoryInfo

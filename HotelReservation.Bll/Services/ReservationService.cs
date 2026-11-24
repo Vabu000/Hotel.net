@@ -16,17 +16,20 @@ namespace HotelReservation.Bll.Services
         private readonly IMapper _mapper;
         private readonly ILogger<ReservationService> _logger;
         private readonly IEventPublisher _eventPublisher;
+        private readonly ReservationMetrics _metrics;
 
         public ReservationService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             ILogger<ReservationService> logger,
-            IEventPublisher eventPublisher)
+            IEventPublisher eventPublisher,
+            ReservationMetrics metrics)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _logger = logger;
             _eventPublisher = eventPublisher;
+            _metrics = metrics;
         }
 
         public async Task<ReservationDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
@@ -54,6 +57,7 @@ namespace HotelReservation.Bll.Services
 
         public async Task<ReservationDto> CreateAsync(CreateReservationDto createReservationDto, CancellationToken cancellationToken = default)
         {
+            using var operationMeasurement = _metrics.TrackOperation("create");
             _logger.LogInformation("Creating new reservation for client ID: {ClientId}, room ID: {RoomId}",
                 createReservationDto.ClientId, createReservationDto.RoomId);
 
@@ -95,18 +99,20 @@ namespace HotelReservation.Bll.Services
 
                 var reservation = _mapper.Map<Reservation>(createReservationDto);
                 reservation.Status = ReservationStatus.Pending;
+                reservation.RoomRateSnapshot = room.Price;
 
                 var reservationId = await _unitOfWork.Reservations.CreateAsync(reservation, cancellationToken);
                 reservation.ReservationId = reservationId;
 
                 await _unitOfWork.CommitAsync(cancellationToken);
+                _metrics.RecordCreated(reservation.Status.ToString());
 
                 _logger.LogInformation("Reservation created with ID: {ReservationId}", reservationId);
 
                 var createdReservation = await _unitOfWork.Reservations.GetWithDetailsAsync(reservationId, cancellationToken);
 
                 // ✅ Publish ReservationMadeEvent to RabbitMQ
-                var totalPrice = CalculateTotalPrice(100m, reservation.CheckInDate, reservation.CheckOutDate); // Default price
+                var totalPrice = CalculateTotalPrice(room.Price, reservation.CheckInDate, reservation.CheckOutDate);
                 var reservationEvent = new ReservationMadeEvent(
                     reservationId: reservationId,
                     clientId: reservation.ClientId,

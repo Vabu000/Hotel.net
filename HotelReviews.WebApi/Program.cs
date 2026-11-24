@@ -9,8 +9,11 @@ using MediatR;
 using Serilog;
 using System.Reflection;
 using HotelReviews.WebApi.Services;
+using HotelReviews.WebApi.HealthChecks;
 using HotelReviews.Application.Common.Interfaces;
 using HotelReviews.Infrastructure.Configuration;
+using MongoDB.Bson;
+using MongoDB.Driver;
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
 var builder = WebApplication.CreateBuilder(args);
@@ -90,14 +93,18 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddHealthChecks()
-    .AddCheck("MongoDB", () =>
-    {
-        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("MongoDB");
-    });
+    .AddCheck<MongoDatabaseHealthCheck>(
+        "reviews-mongodb",
+        failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+        tags: ["ready", "database", "mongodb"])
+    .AddCheck<ReviewsRedisHealthCheck>(
+        "reviews-redis-cache",
+        failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
+        tags: ["ready", "cache", "redis"]);
 
 var app = builder.Build();
 
-app.MapDefaultEndpoints();
+app.UseServiceDefaults();
 
 try
 {
@@ -105,6 +112,12 @@ try
 
     using (var scope = app.Services.CreateScope())
     {
+        var mongoContext = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
+        await EnsureMongoDatabaseReadyAsync(
+            mongoContext,
+            app.Logger,
+            app.Lifetime.ApplicationStopping);
+
         var indexCreator = scope.ServiceProvider.GetRequiredService<MongoIndexCreator>();
         await indexCreator.CreateIndexesAsync();
 
@@ -149,8 +162,41 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application terminated unexpectedly");
+    throw;
 }
 finally
 {
     Log.CloseAndFlush();
+}
+
+static async Task EnsureMongoDatabaseReadyAsync(
+    MongoDbContext context,
+    Microsoft.Extensions.Logging.ILogger logger,
+    CancellationToken cancellationToken)
+{
+    const int maxAttempts = 15;
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            await context.Database.RunCommandAsync(
+                (Command<BsonDocument>)"{ping:1}",
+                cancellationToken: cancellationToken);
+            return;
+        }
+        catch (MongoException ex) when (
+            attempt < maxAttempts
+            && ex is MongoConnectionException)
+        {
+            logger.LogWarning(
+                ex,
+                "Reviews MongoDB is not ready; retrying connection ({Attempt}/{MaxAttempts})",
+                attempt,
+                maxAttempts);
+            await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+        }
+    }
+
+    throw new InvalidOperationException("Could not connect to the Reviews MongoDB database");
 }

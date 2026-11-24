@@ -18,8 +18,10 @@ public class CorrelationIdMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId = context.Request.Headers[CorrelationIdHeader].FirstOrDefault()
-            ?? Guid.NewGuid().ToString();
+        var incomingCorrelationId = context.Request.Headers[CorrelationIdHeader].FirstOrDefault();
+        var correlationId = Guid.TryParse(incomingCorrelationId, out var parsedCorrelationId)
+            ? parsedCorrelationId.ToString("D")
+            : Guid.NewGuid().ToString("D");
 
         context.Response.Headers.TryAdd(CorrelationIdHeader, correlationId);
 

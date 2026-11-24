@@ -6,6 +6,8 @@ using HotelReviews.Infrastructure.Persistence.Repositories;
 using HotelReviews.Infrastructure.Seeding;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using HotelReviews.Application.Common.Interfaces;
+using HotelReviews.Infrastructure.Events;
 
 namespace HotelReviews.Infrastructure;
 public static class DependencyInjection
@@ -14,6 +16,8 @@ public static class DependencyInjection
     this IServiceCollection services,
     IConfiguration configuration)
     {
+        MongoClassMapRegistration.Register();
+
         var mongoConnectionString = configuration.GetConnectionString("mongodb");
 
         if (string.IsNullOrEmpty(mongoConnectionString))
@@ -33,6 +37,7 @@ public static class DependencyInjection
         services.AddSingleton<MongoDbContext>();
         services.AddScoped<IReviewRepository, ReviewRepository>();
         services.AddScoped<IRequestRepository, RequestRepository>();
+        services.AddScoped<IReviewEventPublisher, MassTransitReviewEventPublisher>();
         services.AddSingleton<MongoIndexCreator>();
         services.AddScoped<IDataSeeder, MongoDataSeeder>();
         return services;

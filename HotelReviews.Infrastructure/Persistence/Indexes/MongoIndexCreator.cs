@@ -19,6 +19,7 @@ public class MongoIndexCreator
 
         await CreateReviewIndexesAsync(cancellationToken);
         await CreateRequestIndexesAsync(cancellationToken);
+        await CreateDiscussionIndexesAsync(cancellationToken);
 
         _logger.LogInformation("MongoDB indexes created successfully");
     }
@@ -104,5 +105,21 @@ public class MongoIndexCreator
             cancellationToken: cancellationToken);
 
         _logger.LogInformation("Indexes for Requests collection created");
+    }
+
+    private async Task CreateDiscussionIndexesAsync(CancellationToken cancellationToken)
+    {
+        var collection = _context.Discussions;
+        var roomAndDate = Builders<Discussion>.IndexKeys
+            .Ascending(d => d.RoomId)
+            .Descending(d => d.CreatedAt);
+        await collection.Indexes.CreateOneAsync(
+            new CreateIndexModel<Discussion>(roomAndDate, new CreateIndexOptions { Name = "idx_discussions_room_created" }),
+            cancellationToken: cancellationToken);
+
+        var reviewIndex = Builders<Discussion>.IndexKeys.Ascending(d => d.ReviewId);
+        await collection.Indexes.CreateOneAsync(
+            new CreateIndexModel<Discussion>(reviewIndex, new CreateIndexOptions { Name = "idx_discussions_review" }),
+            cancellationToken: cancellationToken);
     }
 }

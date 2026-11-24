@@ -1,5 +1,5 @@
-﻿using AutoMapper;
-using HotelReviews.Application.Common.Interfaces; 
+using AutoMapper;
+using HotelReviews.Application.Common.Interfaces;
 using HotelReviews.Application.DTOs;
 using HotelReviews.Domain.Exceptions;
 using HotelReviews.Domain.Interfaces;
@@ -11,16 +11,16 @@ public class UpdateReviewCommandHandler : IRequestHandler<UpdateReviewCommand, R
 {
     private readonly IReviewRepository _reviewRepository;
     private readonly IMapper _mapper;
-    private readonly ICacheService _cacheService; 
+    private readonly ITwoLevelCacheService _cacheService;
 
     public UpdateReviewCommandHandler(
         IReviewRepository reviewRepository,
         IMapper mapper,
-        ICacheService cacheService) 
+        ITwoLevelCacheService cacheService)
     {
         _reviewRepository = reviewRepository;
         _mapper = mapper;
-        _cacheService = cacheService; 
+        _cacheService = cacheService;
     }
 
     public async Task<ReviewDto> Handle(UpdateReviewCommand request, CancellationToken cancellationToken)

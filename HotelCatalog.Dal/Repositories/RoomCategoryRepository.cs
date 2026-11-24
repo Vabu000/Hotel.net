@@ -13,7 +13,16 @@ namespace HotelCatalog.Dal.Repositories
 
         public async Task<RoomCategory?> GetCategoryByIdAsync(int categoryId, CancellationToken cancellationToken = default)
         {
-            return await _dbSet.FindAsync(new object[] { categoryId }, cancellationToken);
+            return await _dbSet
+                .Include(category => category.Details)
+                .FirstOrDefaultAsync(category => category.CategoryId == categoryId, cancellationToken);
+        }
+
+        public override async Task<IEnumerable<RoomCategory>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .Include(category => category.Details)
+                .ToListAsync(cancellationToken);
         }
 
         public async Task LoadServicesAsync(RoomCategory category, CancellationToken cancellationToken = default)
@@ -36,6 +45,7 @@ namespace HotelCatalog.Dal.Repositories
         public async Task<IEnumerable<RoomCategory>> GetCategoriesWithServiceCountAsync(CancellationToken cancellationToken = default)
         {
             return await _dbSet
+                .Include(category => category.Details)
                 .Include(rc => rc.RoomServices)
                 .OrderByDescending(rc => rc.RoomServices.Count)
                 .ToListAsync(cancellationToken);

@@ -1,12 +1,10 @@
-using HotelPlatform.ServiceDefaults.Events;
-
 namespace HotelReviews.Application.Events;
 
 /// <summary>
 /// Подія яка публікується коли додається новий відгук про кімнату
 /// Використовується для інвалідації кешу відгуків та оновлення агрегованих даних
 /// </summary>
-public class ReviewAddedEvent : IIntegrationEvent
+public class ReviewAddedEvent
 {
     /// <summary>
     /// Унікальний ідентифікатор події

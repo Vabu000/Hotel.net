@@ -18,6 +18,7 @@ public class MongoDbContext
         clientSettings.ConnectTimeout = TimeSpan.FromSeconds(mongoSettings.ConnectionTimeoutSeconds);
         clientSettings.SocketTimeout = TimeSpan.FromSeconds(mongoSettings.OperationTimeoutSeconds);
         clientSettings.MaxConnectionPoolSize = mongoSettings.MaxConnectionPoolSize;
+        clientSettings.ClusterConfigurator = MongoCommandTracing.Subscribe;
 
         if (mongoSettings.UseSsl)
         {
@@ -34,6 +35,7 @@ public class MongoDbContext
     }
     public IMongoCollection<Review> Reviews => GetCollection<Review>();
     public IMongoCollection<Request> Requests => GetCollection<Request>();
+    public IMongoCollection<Discussion> Discussions => GetCollection<Discussion>();
     public IMongoDatabase Database => _database;
     public MongoClient Client => _client;
     private string GetCollectionName<T>()

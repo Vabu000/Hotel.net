@@ -4,7 +4,6 @@ using HotelReviews.Application.DTOs;
 using HotelReviews.Application.Events;
 using HotelReviews.Domain.Entities;
 using HotelReviews.Domain.Interfaces;
-using HotelPlatform.ServiceDefaults.Events;
 using MediatR;
 
 namespace HotelReviews.Application.Reviews.Commands.CreateReview;
@@ -12,14 +11,14 @@ public class CreateReviewCommandHandler : IRequestHandler<CreateReviewCommand, R
 {
     private readonly IReviewRepository _reviewRepository;
     private readonly IMapper _mapper;
-    private readonly ICacheService _cacheService;
-    private readonly IEventPublisher _eventPublisher;
+    private readonly ITwoLevelCacheService _cacheService;
+    private readonly IReviewEventPublisher _eventPublisher;
 
     public CreateReviewCommandHandler(
         IReviewRepository reviewRepository,
         IMapper mapper,
-        ICacheService cacheService,
-        IEventPublisher eventPublisher)
+        ITwoLevelCacheService cacheService,
+        IReviewEventPublisher eventPublisher)
     {
         _reviewRepository = reviewRepository;
         _mapper = mapper;

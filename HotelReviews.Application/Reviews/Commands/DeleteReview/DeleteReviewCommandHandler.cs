@@ -1,4 +1,4 @@
-﻿using HotelReviews.Application.Common.Interfaces; 
+using HotelReviews.Application.Common.Interfaces;
 using HotelReviews.Domain.Exceptions;
 using HotelReviews.Domain.Interfaces;
 using MediatR;
@@ -8,14 +8,14 @@ namespace HotelReviews.Application.Reviews.Commands.DeleteReview;
 public class DeleteReviewCommandHandler : IRequestHandler<DeleteReviewCommand>
 {
     private readonly IReviewRepository _reviewRepository;
-    private readonly ICacheService _cacheService; 
+    private readonly ITwoLevelCacheService _cacheService;
 
     public DeleteReviewCommandHandler(
         IReviewRepository reviewRepository,
-        ICacheService cacheService) 
+        ITwoLevelCacheService cacheService)
     {
         _reviewRepository = reviewRepository;
-        _cacheService = cacheService; 
+        _cacheService = cacheService;
     }
 
     public async Task Handle(DeleteReviewCommand request, CancellationToken cancellationToken)

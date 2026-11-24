@@ -34,6 +34,10 @@ public class DistributedCacheService : IDistributedCacheService
             _logger.LogInformation("Redis Cache HIT: {CacheKey}", key);
             return JsonSerializer.Deserialize<T>(value!);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Redis GET error for key: {CacheKey}", key);
@@ -52,6 +56,10 @@ public class DistributedCacheService : IDistributedCacheService
 
             _logger.LogInformation("Redis Cache SET: {CacheKey}, Expiration: {Expiration}", key, ttl);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Redis SET error for key: {CacheKey}", key);
@@ -64,6 +72,10 @@ public class DistributedCacheService : IDistributedCacheService
         {
             await _database.KeyDeleteAsync(key);
             _logger.LogInformation("Redis Cache REMOVE: {CacheKey}", key);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -83,6 +95,10 @@ public class DistributedCacheService : IDistributedCacheService
                 await _database.KeyDeleteAsync(keys);
                 _logger.LogInformation("Redis Cache REMOVE BY PREFIX: {Prefix}, Count: {Count}", prefix, keys.Length);
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

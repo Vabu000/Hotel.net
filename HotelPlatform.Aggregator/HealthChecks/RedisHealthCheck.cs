@@ -21,7 +21,7 @@ public class RedisHealthCheck : IHealthCheck
         {
             var database = _redis.GetDatabase();
 
-            var pingTime = await database.PingAsync();
+            var pingTime = await database.PingAsync().WaitAsync(TimeSpan.FromSeconds(3), cancellationToken);
 
             if (pingTime.TotalMilliseconds > 1000)
             {
@@ -56,7 +56,7 @@ public class RedisHealthCheck : IHealthCheck
                     ["status"] = "healthy"
                 });
         }
-        catch (RedisConnectionException ex)
+        catch (RedisException ex)
         {
             _logger.LogWarning(ex, "Redis connection failed - application will continue with L1 cache only");
 
@@ -69,12 +69,12 @@ public class RedisHealthCheck : IHealthCheck
                     ["fallback"] = "L1_cache_only"
                 });
         }
-        catch (Exception ex)
+        catch (TimeoutException ex)
         {
-            _logger.LogError(ex, "Redis health check failed unexpectedly");
+            _logger.LogWarning(ex, "Redis health check timed out");
 
             return HealthCheckResult.Degraded(
-                $"Redis (L2 cache) check failed: {ex.Message}",
+                "Redis health check timed out - using L1 (memory) cache only",
                 ex,
                 data: new Dictionary<string, object>
                 {

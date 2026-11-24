@@ -1,5 +1,5 @@
-﻿using AutoMapper;
-using HotelReviews.Application.Common.Interfaces; 
+using AutoMapper;
+using HotelReviews.Application.Common.Interfaces;
 using HotelReviews.Application.DTOs;
 using HotelReviews.Domain.Interfaces;
 using MediatR;
@@ -10,16 +10,16 @@ public class GetReviewByIdQueryHandler : IRequestHandler<GetReviewByIdQuery, Rev
 {
     private readonly IReviewRepository _reviewRepository;
     private readonly IMapper _mapper;
-    private readonly ICacheService _cacheService; 
+    private readonly ITwoLevelCacheService _cacheService;
 
     public GetReviewByIdQueryHandler(
         IReviewRepository reviewRepository,
         IMapper mapper,
-        ICacheService cacheService) 
+        ITwoLevelCacheService cacheService)
     {
         _reviewRepository = reviewRepository;
         _mapper = mapper;
-        _cacheService = cacheService; 
+        _cacheService = cacheService;
     }
 
     public async Task<ReviewDto?> Handle(GetReviewByIdQuery request, CancellationToken cancellationToken)
@@ -41,7 +41,10 @@ public class GetReviewByIdQueryHandler : IRequestHandler<GetReviewByIdQuery, Rev
 
         var reviewDto = _mapper.Map<ReviewDto>(review);
 
-        await _cacheService.SetAsync(cacheKey, reviewDto, TimeSpan.FromMinutes(10), cancellationToken);
+        await _cacheService.SetAsync(cacheKey, reviewDto,
+            memoryExpiration: TimeSpan.FromMinutes(2),
+            redisExpiration: TimeSpan.FromMinutes(10),
+            cancellationToken: cancellationToken);
 
         return reviewDto;
     }

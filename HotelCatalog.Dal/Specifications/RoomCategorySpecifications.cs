@@ -24,6 +24,7 @@ namespace HotelCatalog.Dal.Specifications
         public CategoryByIdWithServicesSpec(int categoryId)
         {
             Query
+                .Include(rc => rc.Details)
                 .Where(rc => rc.CategoryId == categoryId)
                 .Include(rc => rc.RoomServices)
                     .ThenInclude(rs => rs.Service);
@@ -101,6 +102,7 @@ namespace HotelCatalog.Dal.Specifications
 
             // Pagination
             Query
+                .Include(rc => rc.Details)
                 .Skip(skip)
                 .Take(take);
         }
