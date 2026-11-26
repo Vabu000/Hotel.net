@@ -40,6 +40,11 @@ kubectl create secret generic platform-secrets -n hotel-platform --dry-run=clien
   --from-literal=ConnectionStrings__rabbitmq="$RABBITMQ_CONNECTION" \
   --from-literal=MongoDbSettings__ConnectionString="$MONGODB_CONNECTION" \
   --from-literal=Jwt__SecretKey="$JWT_SECRET" \
+  --from-literal=Smtp__Host="$SMTP_HOST" \
+  --from-literal=Smtp__Port="${SMTP_PORT:-587}" \
+  --from-literal=Smtp__Username="$SMTP_USERNAME" \
+  --from-literal=Smtp__Password="$SMTP_PASSWORD" \
+  --from-literal=Smtp__FromAddress="$SMTP_FROM_ADDRESS" \
   --from-literal=IdentityServer__Clients__AggregatorSecret="$AGGREGATOR_CLIENT_SECRET" \
   --from-literal=KC_BOOTSTRAP_ADMIN_PASSWORD="$KEYCLOAK_ADMIN_PASSWORD" | kubectl apply -f -
 ```

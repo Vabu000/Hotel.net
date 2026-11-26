@@ -135,7 +135,7 @@ public sealed class MockEmailService(ILogger<MockEmailService> logger) : IEmailS
 {
     public Task SendAsync(string toEmail, string subject, string body, CancellationToken ct = default)
     {
-        logger.LogInformation("Mock email to {Email} | Subject: {Subject} | Body: {Body}", toEmail, subject, body);
+        logger.LogInformation("Mock email to {Email} | Subject: {Subject}", toEmail, subject);
         return Task.CompletedTask;
     }
 }

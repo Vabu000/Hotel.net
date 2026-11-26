@@ -1,4 +1,5 @@
 using System.Text;
+using System.Net.Mail;
 using HotelAuth.Api.Data;
 using HotelAuth.Api.Models;
 using HotelAuth.Api.Services;
@@ -56,7 +57,23 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
-builder.Services.AddScoped<IEmailService, MockEmailService>();
+var smtpOptions = builder.Services.AddOptions<SmtpEmailOptions>()
+    .Bind(builder.Configuration.GetSection("Smtp"));
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddScoped<IEmailService, MockEmailService>();
+}
+else
+{
+    smtpOptions
+        .Validate(options => !string.IsNullOrWhiteSpace(options.Host)
+            && options.Port is > 0 and <= 65535
+            && MailAddress.TryCreate(options.FromAddress, out _)
+            && (string.IsNullOrWhiteSpace(options.Username) == string.IsNullOrWhiteSpace(options.Password)),
+            "SMTP host, a valid sender address, and matching optional credentials must be configured.")
+        .ValidateOnStart();
+    builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+}
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
