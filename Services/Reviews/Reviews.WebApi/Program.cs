@@ -1,7 +1,8 @@
-﻿using FluentValidation;
+using FluentValidation;
 using HotelReviews.Application.Behaviors;
 using HotelReviews.Application.Mappings;
 using HotelReviews.Infrastructure;
+using HotelReviews.WebApi.HealthChecks;
 using HotelReviews.WebApi.Middleware;
 using MediatR;
 using Serilog;
@@ -72,26 +73,7 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader();
     });
 });
-builder.Services.AddHealthChecks()
-    .AddCheck("MongoDB", () =>
-    {
-        try
-        {
-            var context = builder.Services.BuildServiceProvider()
-                .GetRequiredService<HotelReviews.Infrastructure.Persistence.MongoDbContext>();
-
-            var isConnected = context.CheckConnectionAsync().GetAwaiter().GetResult();
-
-            return isConnected
-                ? Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("MongoDB connected")
-                : Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy("MongoDB not connected");
-        }
-        catch (Exception ex)
-        {
-            return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy(
-                "MongoDB connection error", ex);
-        }
-    });
+builder.Services.AddHealthChecks().AddCheck<MongoDatabaseHealthCheck>("MongoDB");
 var app = builder.Build();
 try
 {

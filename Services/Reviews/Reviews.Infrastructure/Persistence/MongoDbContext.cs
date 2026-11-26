@@ -1,8 +1,7 @@
-﻿using HotelReviews.Domain.Entities;
+using HotelReviews.Domain.Entities;
 using HotelReviews.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
-using System.Reflection;
 
 namespace HotelReviews.Infrastructure.Persistence;
 public class MongoDbContext
@@ -36,10 +35,19 @@ public class MongoDbContext
     public IMongoCollection<Request> Requests => GetCollection<Request>();
     public IMongoDatabase Database => _database;
     public MongoClient Client => _client;
-    private string GetCollectionName<T>()
+    private static string GetCollectionName<T>() where T : class
     {
-        var attribute = typeof(T).GetCustomAttribute<BsonCollectionAttribute>();
-        return attribute?.CollectionName ?? typeof(T).Name.ToLowerInvariant() + "s";
+        if (typeof(T) == typeof(Review))
+        {
+            return "reviews";
+        }
+
+        if (typeof(T) == typeof(Request))
+        {
+            return "requests";
+        }
+
+        return typeof(T).Name.ToLowerInvariant() + "s";
     }
     public async Task<bool> CheckConnectionAsync(CancellationToken cancellationToken = default)
     {

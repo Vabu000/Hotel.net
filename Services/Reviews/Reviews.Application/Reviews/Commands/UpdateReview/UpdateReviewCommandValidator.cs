@@ -1,5 +1,4 @@
-﻿using FluentValidation;
-using MongoDB.Bson;
+using FluentValidation;
 
 namespace HotelReviews.Application.Reviews.Commands.UpdateReview;
 public class UpdateReviewCommandValidator : AbstractValidator<UpdateReviewCommand>
@@ -27,6 +26,6 @@ public class UpdateReviewCommandValidator : AbstractValidator<UpdateReviewComman
 
     private bool BeValidObjectId(string id)
     {
-        return ObjectId.TryParse(id, out _);
+        return id.Length == 24 && id.All(Uri.IsHexDigit);
     }
 }

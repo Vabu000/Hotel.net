@@ -1,4 +1,4 @@
-﻿using HotelReviews.Domain.Interfaces;
+using HotelReviews.Domain.Interfaces;
 using HotelReviews.Infrastructure.Configuration;
 using HotelReviews.Infrastructure.Persistence;
 using HotelReviews.Infrastructure.Persistence.Indexes;
@@ -8,14 +8,25 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HotelReviews.Infrastructure;
+
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<MongoDbSettings>(
-            configuration.GetSection(MongoDbSettings.SectionName));
+        MongoClassMapRegistration.Register();
+
+        services.Configure<MongoDbSettings>(options =>
+        {
+            configuration.GetSection(MongoDbSettings.SectionName).Bind(options);
+            var connectionString = configuration.GetConnectionString("mongodb");
+            if (!string.IsNullOrWhiteSpace(connectionString))
+            {
+                options.ConnectionString = connectionString;
+            }
+        });
+
         services.AddSingleton<MongoDbContext>();
         services.AddScoped<IReviewRepository, ReviewRepository>();
         services.AddScoped<IRequestRepository, RequestRepository>();
@@ -23,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IDataSeeder, MongoDataSeeder>();
         return services;
     }
+
     public static async Task InitializeMongoDbAsync(this IServiceProvider serviceProvider)
     {
         using var scope = serviceProvider.CreateScope();

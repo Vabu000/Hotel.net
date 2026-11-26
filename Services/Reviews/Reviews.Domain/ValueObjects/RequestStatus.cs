@@ -1,8 +1,6 @@
-﻿using HotelReviews.Domain.Exceptions;
-using MongoDB.Bson.Serialization.Attributes;
+using HotelReviews.Domain.Exceptions;
 
 namespace HotelReviews.Domain.ValueObjects;
-[BsonSerializer(typeof(RequestStatusSerializer))]
 public sealed class RequestStatus : ValueObject
 {
     public string Value { get; }
@@ -56,11 +54,7 @@ public sealed class RequestStatus : ValueObject
             _ => false
         };
     }
-
-    [BsonIgnore]
     public bool IsFinal => Value is "rejected" or "completed";
-
-    [BsonIgnore]
     public bool IsActive => Value is "pending" or "approved" or "in_progress";
 
     protected override IEnumerable<object?> GetEqualityComponents()
@@ -71,17 +65,4 @@ public sealed class RequestStatus : ValueObject
     public override string ToString() => Value;
 
     public static implicit operator string(RequestStatus status) => status.Value;
-}
-public class RequestStatusSerializer : MongoDB.Bson.Serialization.Serializers.SerializerBase<RequestStatus>
-{
-    public override RequestStatus Deserialize(MongoDB.Bson.Serialization.BsonDeserializationContext context, MongoDB.Bson.Serialization.BsonDeserializationArgs args)
-    {
-        var value = context.Reader.ReadString();
-        return RequestStatus.Create(value);
-    }
-
-    public override void Serialize(MongoDB.Bson.Serialization.BsonSerializationContext context, MongoDB.Bson.Serialization.BsonSerializationArgs args, RequestStatus value)
-    {
-        context.Writer.WriteString(value.Value);
-    }
 }

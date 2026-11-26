@@ -1,43 +1,20 @@
-﻿using HotelReviews.Domain.Common;
+using HotelReviews.Domain.Common;
 using HotelReviews.Domain.Exceptions;
 using HotelReviews.Domain.ValueObjects;
-using MongoDB.Bson.Serialization.Attributes;
 
 namespace HotelReviews.Domain.Entities;
 
-[BsonCollection("requests")]
 public class Request : BaseEntity
 {
-    [BsonElement("clientId")]
     public int ClientId { get; private set; }
-
-    [BsonElement("roomId")]
     public int RoomId { get; private set; }
-
-    [BsonElement("request")]
     public string RequestText { get; private set; }
-
-    [BsonElement("status")]
     public RequestStatus Status { get; private set; }
-
-    [BsonElement("date")]
-    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime Date { get; private set; }
-
-    [BsonElement("priority")]
     public int Priority { get; private set; }
-
-    [BsonElement("category")]
     public string Category { get; private set; }
-
-    [BsonElement("response")]
     public string? Response { get; private set; }
-
-    [BsonElement("responseDate")]
-    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime? ResponseDate { get; private set; }
-
-    [BsonElement("handledBy")]
     public int? HandledBy { get; private set; }
 
     private Request()
@@ -176,11 +153,7 @@ public class Request : BaseEntity
         Priority = newPriority;
         UpdateTimestamp();
     }
-
-    [BsonIgnore]
     public bool IsHighPriority => Priority >= 4;
-
-    [BsonIgnore]
     public bool IsCritical => Status == RequestStatus.Pending &&
                               DateTime.UtcNow - Date > TimeSpan.FromHours(24);
 

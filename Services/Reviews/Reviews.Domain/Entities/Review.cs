@@ -1,36 +1,18 @@
-﻿using HotelReviews.Domain.Common;
+using HotelReviews.Domain.Common;
 using HotelReviews.Domain.Exceptions;
 using HotelReviews.Domain.ValueObjects;
-using MongoDB.Bson.Serialization.Attributes;
 
 namespace HotelReviews.Domain.Entities;
 
-[BsonCollection("reviews")]
 public class Review : BaseEntity
 {
-    [BsonElement("clientId")]
     public int ClientId { get; private set; }
-
-    [BsonElement("roomId")]
     public int RoomId { get; private set; }
-
-    [BsonElement("rating")]
     public Rating Rating { get; private set; }
-
-    [BsonElement("comment")]
     public string Comment { get; private set; }
-
-    [BsonElement("date")]
-    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime Date { get; private set; }
-
-    [BsonElement("isVerified")]
     public bool IsVerified { get; private set; }
-
-    [BsonElement("isApproved")]
     public bool IsApproved { get; private set; }
-
-    [BsonElement("rejectionReason")]
     public string? RejectionReason { get; private set; }
 
     private Review()
@@ -119,21 +101,6 @@ public class Review : BaseEntity
         RejectionReason = reason;
         UpdateTimestamp();
     }
-
-    [BsonIgnore]
     public bool IsPositive => Rating.IsHighRating;
-
-    [BsonIgnore]
     public bool IsNegative => Rating.IsLowRating;
-}
-
-[AttributeUsage(AttributeTargets.Class)]
-public class BsonCollectionAttribute : Attribute
-{
-    public string CollectionName { get; }
-
-    public BsonCollectionAttribute(string collectionName)
-    {
-        CollectionName = collectionName;
-    }
 }
