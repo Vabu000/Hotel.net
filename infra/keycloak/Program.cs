@@ -45,7 +45,7 @@ return await Deployment.RunAsync(() =>
     // 3. Resource Servers (Authorization enabled)
     var reservationsResourceServer = CreateResourceServer(
         "reservations-api", realm.Id,
-        ["reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve"],
+        ["reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve", "catalog:read", "catalog:create", "catalog:update", "catalog:delete", "catalog:publish", "payments:read", "payments:process", "payments:refund"],
         customOptions);
 
     var catalogResourceServer = CreateResourceServer(
@@ -64,7 +64,13 @@ return await Deployment.RunAsync(() =>
 
     // 4. Role policies and scope permissions for all resource servers.
     AddRolePermissions("reservations", realm.Id, reservationsResourceServer, adminRole.Id,
-        "admin", ["reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve"], customOptions);
+        "admin", ["reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve", "catalog:read", "catalog:create", "catalog:update", "catalog:delete", "catalog:publish", "payments:read", "payments:process", "payments:refund"], customOptions);
+    AddRolePermissions("reservations", realm.Id, reservationsResourceServer, managerRole.Id,
+        "manager", ["catalog:read", "catalog:update", "catalog:publish"], customOptions);
+    AddRolePermissions("reservations", realm.Id, reservationsResourceServer, userRole.Id,
+        "user", ["catalog:read"], customOptions);
+    AddRolePermissions("reservations", realm.Id, reservationsResourceServer, guestRole.Id,
+        "guest", ["catalog:read"], customOptions);
     AddRolePermissions("catalog", realm.Id, catalogResourceServer, adminRole.Id,
         "admin", ["catalog:read", "catalog:create", "catalog:update", "catalog:delete", "catalog:publish"], customOptions);
     AddRolePermissions("payments", realm.Id, paymentsResourceServer, adminRole.Id,
@@ -113,6 +119,8 @@ return await Deployment.RunAsync(() =>
         ["RealmUrl"] = Output.Format($"{keycloakUrl}/realms/HotelRealm"),
         ["AdminConsoleUrl"] = $"{keycloakUrl}/admin",
         ["ClientIds"] = Output.All(postmanClient.ClientId, swaggerClient.ClientId, aggregatorClient.ClientId),
+        ["ClientSecrets"] = aggregatorClientSecret.Apply(secret =>
+            new Dictionary<string, string> { ["aggregator.service"] = secret }),
         ["ResourceServerIds"] = Output.All(
             reservationsResourceServer.Client.ResourceServerId,
             catalogResourceServer.Client.ResourceServerId,
@@ -220,7 +228,7 @@ static Client CreateAuthCodeClient(
         AccessType = pkce ? "PUBLIC" : "CONFIDENTIAL",
         ClientSecret = secret,
         StandardFlowEnabled = true,
-        DirectAccessGrantsEnabled = true,
+        DirectAccessGrantsEnabled = false,
         ValidRedirectUris = redirectUris,
         PkceCodeChallengeMethod = pkce ? "S256" : string.Empty
     }, opts);

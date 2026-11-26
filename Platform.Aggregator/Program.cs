@@ -6,6 +6,7 @@ using HotelCatalog.Api.Grpc;
 using HotelReservation.Api.Grpc;
 using HotelReviews.WebApi.Services;
 using HotelPlatform.ServiceDefaults;
+using HotelPlatform.ServiceDefaults.Swagger;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 using MassTransit;
@@ -29,6 +30,9 @@ builder.Services.AddSingleton<RedisCacheService>();
 builder.Services.AddSingleton<TwoLevelCacheService>();
 
 builder.Services.AddSingleton<MetricsService>();
+builder.Services.AddSingleton<IdentityServerTokenProvider>();
+builder.Services.AddTransient<IdentityServerAuthorizationHandler>();
+builder.Services.AddHttpClient("IdentityServerToken");
 
 builder.Services.AddMassTransit(x =>
 {
@@ -70,6 +74,7 @@ builder.Services.AddGrpcClient<CatalogService.CatalogServiceClient>(options =>
 {
     options.Address = new Uri(catalogServiceUrl);
 })
+.AddHttpMessageHandler<IdentityServerAuthorizationHandler>()
 .AddInterceptor(_ => new GrpcDeadlineInterceptor(TimeSpan.FromSeconds(3)))
 .ConfigureChannel(options => options.ServiceConfig = GrpcClientResilience.ForReadMethods(
     "catalog.CatalogService", 3, TimeSpan.FromMilliseconds(200), TimeSpan.FromSeconds(1),
@@ -94,6 +99,7 @@ builder.Services.AddGrpcClient<ReservationsService.ReservationsServiceClient>(op
 {
     options.Address = new Uri(reservationServiceUrl);
 })
+.AddHttpMessageHandler<IdentityServerAuthorizationHandler>()
 .AddInterceptor(_ => new GrpcDeadlineInterceptor(TimeSpan.FromSeconds(4)))
 .ConfigureChannel(options => options.ServiceConfig = GrpcClientResilience.ForReadMethods(
     "reservations.ReservationsService", 2, TimeSpan.FromMilliseconds(250), TimeSpan.FromMilliseconds(750),
@@ -118,6 +124,7 @@ builder.Services.AddGrpcClient<ReviewsService.ReviewsServiceClient>(options =>
 {
     options.Address = new Uri(reviewsServiceUrl);
 })
+.AddHttpMessageHandler<IdentityServerAuthorizationHandler>()
 .AddInterceptor(_ => new GrpcDeadlineInterceptor(TimeSpan.FromSeconds(2)))
 .ConfigureChannel(options => options.ServiceConfig = GrpcClientResilience.ForReadMethods(
     "reviews.ReviewsService", 2, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(400),
@@ -159,6 +166,9 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "Aggregates data from Catalog, Reservation and Reviews microservices using gRPC"
     });
+    options.AddPlatformOAuth(builder.Configuration,
+        "openid", "profile", "roles",
+        "reservations:read", "catalog:read", "reviews:read");
 });
 
 var app = builder.Build();

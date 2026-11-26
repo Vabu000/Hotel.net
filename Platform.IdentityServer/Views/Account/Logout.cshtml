@@ -1,0 +1,13 @@
+@model string?
+@{
+    ViewData["Title"] = "Sign out";
+}
+
+<main>
+    <h1>Sign out</h1>
+    <p>Do you want to end your Hotel Platform sign-in session?</p>
+    <form asp-controller="Account" asp-action="LogoutConfirmed" method="post">
+        <input name="logoutId" value="@Model" type="hidden" />
+        <button type="submit">Sign out</button>
+    </form>
+</main>

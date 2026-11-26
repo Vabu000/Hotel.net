@@ -1,0 +1,21 @@
+@model ConsentViewModel
+@{
+    ViewData["Title"] = "Authorization";
+}
+
+<main>
+    <h1>Allow @Model.ClientName?</h1>
+    <p>This application is requesting access to:</p>
+    <ul>
+        @foreach (var scope in Model.RequestedScopes)
+        {
+            <li>@scope</li>
+        }
+    </ul>
+    <form asp-controller="Consent" asp-action="Decide" method="post">
+        <input asp-for="ReturnUrl" type="hidden" />
+        <label><input asp-for="RememberConsent" /> Remember my decision</label>
+        <button type="submit" name="Grant" value="true">Allow</button>
+        <button type="submit" name="Grant" value="false">Deny</button>
+    </form>
+</main>

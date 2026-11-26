@@ -45,6 +45,27 @@ app.Use(async (context, next) =>
     }
 });
 
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwaggerUI(options =>
+    {
+        options.RoutePrefix = "swagger";
+        options.SwaggerEndpoint("/swagger/reservations.json", "Reservations API");
+        options.SwaggerEndpoint("/swagger/catalog.json", "Catalog API");
+        options.SwaggerEndpoint("/swagger/reviews.json", "Reviews API");
+        options.SwaggerEndpoint("/swagger/payments.json", "Payments API");
+        options.SwaggerEndpoint("/swagger/aggregator.json", "Aggregator API");
+        options.OAuthClientId("swagger");
+        options.OAuthUsePkce();
+        options.OAuthScopes(
+            "openid", "profile", "roles",
+            "reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve",
+            "catalog:read", "catalog:create", "catalog:update", "catalog:delete", "catalog:publish",
+            "reviews:read", "reviews:create", "reviews:update", "reviews:delete", "reviews:approve",
+            "payments:read", "payments:process", "payments:refund");
+    });
+}
+
 app.MapGet("/", () => Results.Json(new
 {
     service = "Hotel Platform API Gateway",
@@ -54,8 +75,10 @@ app.MapGet("/", () => Results.Json(new
     availableRoutes = new[]
     {
         new { path = "/api/reviews", proxiedTo = "reviews-service" },
-        new { path = "/api/Service and /api/RoomCategory", proxiedTo = "catalog-service" },
-        new { path = "/api/Reservation", proxiedTo = "reservation-service" },
+        new { path = "/api/Requests", proxiedTo = "reviews-service" },
+        new { path = "/api/Service, /api/RoomCategory, and /api/DiscountCategory", proxiedTo = "catalog-service" },
+        new { path = "/api/Client, /api/Room, /api/Payment, and /api/Reservation", proxiedTo = "reservation-service" },
+        new { path = "/api/Payments", proxiedTo = "payments-service" },
         new { path = "/api/RoomAggregator", proxiedTo = "aggregator" }
     },
     testing = new
@@ -78,10 +101,16 @@ app.Run();
 static string? ResolveTarget(string? path)
 {
     if (path is null) return null;
-    if (path.StartsWith("/api/reviews", StringComparison.OrdinalIgnoreCase)) return "reviews-service";
-    if (path.StartsWith("/api/Reservation", StringComparison.OrdinalIgnoreCase)) return "reservation-service";
-    if (path.StartsWith("/api/Service", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWith("/api/RoomCategory", StringComparison.OrdinalIgnoreCase)) return "catalog-service";
     if (path.StartsWith("/api/RoomAggregator", StringComparison.OrdinalIgnoreCase)) return "aggregator";
+    if (path.StartsWith("/api/reviews", StringComparison.OrdinalIgnoreCase)) return "reviews-service";
+    if (path.StartsWith("/api/Requests", StringComparison.OrdinalIgnoreCase)) return "reviews-service";
+    if (path.StartsWith("/api/Payments", StringComparison.OrdinalIgnoreCase)) return "payments-service";
+    if (path.StartsWith("/api/Service", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/api/RoomCategory", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/api/DiscountCategory", StringComparison.OrdinalIgnoreCase)) return "catalog-service";
+    if (path.StartsWith("/api/Reservation", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/api/Client", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/api/Room", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/api/Payment", StringComparison.OrdinalIgnoreCase)) return "reservation-service";
     return null;
 }

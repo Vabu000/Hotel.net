@@ -14,7 +14,8 @@ public sealed class AuthController(
     UserManager<ApplicationUser> userManager,
     AuthDbContext db,
     IJwtTokenService jwtService,
-    IEmailService emailService) : ControllerBase
+    IEmailService emailService,
+    IHostEnvironment environment) : ControllerBase
 {
     public sealed record RegisterRequest(string Username, string Email, string Password, string? FullName);
     public sealed record LoginRequest(string EmailOrUsername, string Password);
@@ -23,8 +24,6 @@ public sealed class AuthController(
     public sealed record ForgotPasswordRequest(string Email);
     public sealed record ResetPasswordRequest(string Email, string Token, string NewPassword);
     public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
-    public sealed record TokenRequest(string? RefreshToken);
-
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterRequest request, CancellationToken ct)
@@ -97,9 +96,9 @@ public sealed class AuthController(
 
     [HttpPost("refresh-token")]
     [AllowAnonymous]
-    public async Task<IActionResult> RefreshToken([FromBody] TokenRequest? body, CancellationToken ct)
+    public async Task<IActionResult> RefreshToken(CancellationToken ct)
     {
-        var tokenValue = Request.Cookies["refreshToken"] ?? body?.RefreshToken;
+        var tokenValue = Request.Cookies["refreshToken"];
         if (string.IsNullOrWhiteSpace(tokenValue))
         {
             return Unauthorized(new { error = "Refresh token is missing" });
@@ -130,9 +129,9 @@ public sealed class AuthController(
 
     [HttpPost("revoke-token")]
     [Authorize]
-    public async Task<IActionResult> RevokeToken([FromBody] TokenRequest? body, CancellationToken ct)
+    public async Task<IActionResult> RevokeToken(CancellationToken ct)
     {
-        var tokenValue = Request.Cookies["refreshToken"] ?? body?.RefreshToken;
+        var tokenValue = Request.Cookies["refreshToken"];
         if (string.IsNullOrWhiteSpace(tokenValue))
         {
             return BadRequest(new { error = "Refresh token is required" });
@@ -144,8 +143,14 @@ public sealed class AuthController(
             return NotFound(new { error = "Active refresh token not found" });
         }
 
+        if (!IsOwnerOrAdmin(existing.UserId))
+        {
+            return Forbid();
+        }
+
         existing.RevokedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        Response.Cookies.Delete("refreshToken");
         return NoContent();
     }
 
@@ -157,7 +162,7 @@ public sealed class AuthController(
         if (!string.IsNullOrWhiteSpace(tokenValue))
         {
             var existing = await db.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == tokenValue, ct);
-            if (existing is not null && existing.IsActive)
+            if (existing is not null && existing.IsActive && IsOwnerOrAdmin(existing.UserId))
             {
                 existing.RevokedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
@@ -251,9 +256,17 @@ public sealed class AuthController(
         Response.Cookies.Append("refreshToken", token, new CookieOptions
         {
             HttpOnly = true,
-            Secure = Request.IsHttps,
+            Secure = Request.IsHttps || !environment.IsDevelopment(),
             SameSite = SameSiteMode.Strict,
             Expires = expiresAt
         });
+    }
+
+    private bool IsOwnerOrAdmin(string targetUserId)
+    {
+        if (User.IsInRole("Admin")) return true;
+        var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        return string.Equals(currentUserId, targetUserId, StringComparison.Ordinal);
     }
 }

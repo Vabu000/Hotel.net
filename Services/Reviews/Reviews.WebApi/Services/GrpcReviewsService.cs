@@ -19,6 +19,7 @@ public class GrpcReviewsService : ReviewsService.ReviewsServiceBase
         _logger = logger;
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "reviews:read")]
     public override async Task<GetReviewsByRoomResponse> GetReviewsByRoom(
      GetReviewsByRoomRequest request,
      ServerCallContext context)
@@ -51,6 +52,7 @@ public class GrpcReviewsService : ReviewsService.ReviewsServiceBase
         return response;
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "reviews:read")]
     public override async Task<ReviewResponse> GetReviewById(
         GetReviewByIdRequest request,
         ServerCallContext context)
@@ -71,6 +73,7 @@ public class GrpcReviewsService : ReviewsService.ReviewsServiceBase
         };
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "reviews:create")]
     public override async Task<ReviewResponse> CreateReview(
         CreateReviewRequest request,
         ServerCallContext context)

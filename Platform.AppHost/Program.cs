@@ -7,6 +7,10 @@ var sqlServerPassword = builder.AddParameter("sqlserver-password", secret: true)
 var jwtSigningKey = builder.AddParameter("jwt-signing-key", secret: true);
 var keycloakAdminPassword = builder.AddParameter("keycloak-admin-password", secret: true);
 var aggregatorClientSecret = builder.AddParameter("identityserver-aggregator-secret", secret: true);
+var identityServerAdminEmail = builder.AddParameter("identityserver-admin-email", "admin@hotel.local", publishValueAsDefault: true);
+var identityServerAdminPassword = builder.AddParameter("identityserver-admin-password", secret: true);
+var authAdminEmail = builder.AddParameter("auth-admin-email", "admin@hotel.local", publishValueAsDefault: true);
+var authAdminPassword = builder.AddParameter("auth-admin-password", secret: true);
 
 var mongodb = builder.AddMongoDB("mongo")
     .WithDataVolume("mongodb-data-v2");
@@ -53,14 +57,19 @@ var keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26
 var authService = builder.AddProject<Projects.Auth_Api>("auth-service")
     .WithReference(identityDb)
     .WithEnvironment("Jwt__SecretKey", jwtSigningKey)
+    .WithEnvironment("Auth__SeedAdmin__Email", authAdminEmail)
+    .WithEnvironment("Auth__SeedAdmin__Password", authAdminPassword)
     .WaitFor(identityDb)
     .WithHttpHealthCheck("/health/ready");
 
 var identityServer = builder.AddProject<Projects.Platform_IdentityServer>("identityserver")
+    .WithHttpEndpoint(port: 15135, targetPort: 15135, name: "public")
     .WithReference(identityServerDb)
     .WithReference(identityServerConfigDb)
     .WithReference(identityServerGrantsDb)
     .WithEnvironment("IdentityServer__Clients__AggregatorSecret", aggregatorClientSecret)
+    .WithEnvironment("IdentityServer__SeedAdmin__Email", identityServerAdminEmail)
+    .WithEnvironment("IdentityServer__SeedAdmin__Password", identityServerAdminPassword)
     .WaitFor(identityServerDb)
     .WaitFor(identityServerConfigDb)
     .WaitFor(identityServerGrantsDb)
@@ -70,6 +79,7 @@ var paymentsService = builder.AddProject<Projects.Payments_Api>("payments-servic
     .WithReference(identityServer)
     .WithEnvironment("Jwt__SecretKey", jwtSigningKey)
     .WithEnvironment("IdentityServer__Authority", identityServer.GetEndpoint("http"))
+    .WithEnvironment("IdentityServer__PublicAuthority", "http://localhost:15135")
     .WithEnvironment("Keycloak__Authority", keycloak.GetEndpoint("http"))
     .WaitFor(identityServer)
     .WaitFor(keycloak)
@@ -85,6 +95,7 @@ var reviewsService = builder.AddProject<Projects.HotelReviews_WebApi>("reviews-s
     .WaitFor(rabbitmq)
     .WithEnvironment("Jwt__SecretKey", jwtSigningKey)
     .WithEnvironment("IdentityServer__Authority", identityServer.GetEndpoint("http"))
+    .WithEnvironment("IdentityServer__PublicAuthority", "http://localhost:15135")
     .WithEnvironment("Keycloak__Authority", keycloak.GetEndpoint("http"))
     .WaitFor(identityServer)
     .WaitFor(keycloak)
@@ -98,6 +109,7 @@ var reservationService = builder.AddProject<Projects.HotelReservation_Api>("rese
     .WaitFor(rabbitmq)
     .WithEnvironment("Jwt__SecretKey", jwtSigningKey)
     .WithEnvironment("IdentityServer__Authority", identityServer.GetEndpoint("http"))
+    .WithEnvironment("IdentityServer__PublicAuthority", "http://localhost:15135")
     .WithEnvironment("Keycloak__Authority", keycloak.GetEndpoint("http"))
     .WaitFor(identityServer)
     .WaitFor(keycloak)
@@ -113,20 +125,27 @@ var catalogService = builder.AddProject<Projects.HotelCatalog_Api>("catalog-serv
     .WaitFor(rabbitmq)
     .WithEnvironment("Jwt__SecretKey", jwtSigningKey)
     .WithEnvironment("IdentityServer__Authority", identityServer.GetEndpoint("http"))
+    .WithEnvironment("IdentityServer__PublicAuthority", "http://localhost:15135")
     .WithEnvironment("Keycloak__Authority", keycloak.GetEndpoint("http"))
     .WaitFor(identityServer)
     .WaitFor(keycloak)
     .WithHttpHealthCheck("/health/ready");
 
 var aggregator = builder.AddProject<Projects.HotelPlatform_Aggregator>("aggregator")
+    .WithReference(identityServer)
     .WithReference(reviewsService)
     .WithReference(reservationService)
     .WithReference(catalogService)
     .WithReference(redis)
+    .WithEnvironment("IdentityServer__Authority", identityServer.GetEndpoint("http"))
+    .WithEnvironment("IdentityServer__PublicAuthority", "http://localhost:15135")
+    .WithEnvironment("IdentityServer__Clients__AggregatorClientId", "aggregator_service")
+    .WithEnvironment("IdentityServer__Clients__AggregatorSecret", aggregatorClientSecret)
     .WaitFor(reviewsService)
     .WaitFor(reservationService)
     .WaitFor(catalogService)
     .WaitFor(redis)
+    .WaitFor(identityServer)
     .WithHttpHealthCheck("/health/ready");
 
 var gateway = builder.AddProject<Projects.HotelPlatform_ApiGateway>("gateway")

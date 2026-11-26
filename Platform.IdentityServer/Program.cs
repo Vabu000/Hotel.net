@@ -31,6 +31,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = true;
     options.User.RequireUniqueEmail = true;
+    options.ClaimsIdentity.RoleClaimType = "role";
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
@@ -43,6 +44,10 @@ builder.Services.AddIdentityServer(options =>
     options.Events.RaiseFailureEvents = true;
     options.Events.RaiseSuccessEvents = true;
     options.EmitStaticAudienceClaim = true;
+    options.UserInteraction.LoginUrl = "/account/login";
+    options.UserInteraction.LogoutUrl = "/account/logout";
+    options.UserInteraction.ConsentUrl = "/consent";
+    options.UserInteraction.ErrorUrl = "/error";
 })
 .AddConfigurationStore(options =>
 {
@@ -60,7 +65,7 @@ builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 app.UseServiceDefaults();
@@ -79,6 +84,7 @@ app.UseIdentityServer();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapDefaultControllerRoute();
 
 
 app.Run();
@@ -128,7 +134,7 @@ static async Task InitializeDatabaseAsync(WebApplication app, string aggregatorC
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-    string[] roles = { "Admin", "Manager", "Guest" };
+    string[] roles = { "Admin", "Manager", "User", "Guest" };
     foreach (var role in roles)
     {
         if (!await roleManager.RoleExistsAsync(role))

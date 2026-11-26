@@ -21,6 +21,7 @@ public class GrpcCatalogService : CatalogService.CatalogServiceBase
         _logger = logger;
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "catalog:read")]
     public override async Task<GetAllServicesResponse> GetAllServices(
         GetAllServicesRequest request,
         ServerCallContext context)
@@ -39,6 +40,7 @@ public class GrpcCatalogService : CatalogService.CatalogServiceBase
         return response;
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "catalog:read")]
     public override async Task<ServiceResponse> GetServiceById(
         GetServiceByIdRequest request,
         ServerCallContext context)
@@ -59,6 +61,7 @@ public class GrpcCatalogService : CatalogService.CatalogServiceBase
         };
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "catalog:create")]
     public override async Task<ServiceResponse> CreateService(
         CreateServiceRequest request,
         ServerCallContext context)
@@ -80,6 +83,7 @@ public class GrpcCatalogService : CatalogService.CatalogServiceBase
         };
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "catalog:read")]
     public override Task<RoomCategoryResponse> GetRoomCategoryByRoomId(
     GetRoomCategoryByRoomIdRequest request,
     ServerCallContext context)
@@ -116,6 +120,7 @@ public class GrpcCatalogService : CatalogService.CatalogServiceBase
         return Task.FromResult(response);
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "catalog:read")]
     public override async Task<GetAllServicesResponse> GetServicesByRoomCategory(
         GetServicesByRoomCategoryRequest request,
         ServerCallContext context)

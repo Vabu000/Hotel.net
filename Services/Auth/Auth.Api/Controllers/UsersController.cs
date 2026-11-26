@@ -80,6 +80,7 @@ public sealed class UsersController(
     [HttpGet("{id}/roles")]
     public async Task<IActionResult> GetRoles(string id)
     {
+        if (!IsOwnerOrAdmin(id)) return Forbid();
         var user = await userManager.FindByIdAsync(id);
         if (user is null) return NotFound();
         return Ok(await userManager.GetRolesAsync(user));

@@ -1,5 +1,6 @@
 using HotelPlatform.ServiceDefaults.Authorization;
 using HotelPlatform.ServiceDefaults.Authentication;
+using HotelPlatform.ServiceDefaults.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +19,10 @@ builder.Services.AddPermissionPolicies(
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options => options.AddPlatformOAuth(
+    builder.Configuration,
+    "openid", "profile", "roles",
+    "payments:read", "payments:process", "payments:refund"));
 
 var app = builder.Build();
 

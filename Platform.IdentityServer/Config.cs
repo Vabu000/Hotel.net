@@ -41,7 +41,7 @@ public static class Config
         {
             new ApiResource("reservations_api", "Hotel Reservations API")
             {
-                Scopes = { "reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve" },
+                Scopes = { "reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve", "catalog:read", "catalog:create", "catalog:update", "catalog:delete", "catalog:publish", "payments:read", "payments:process", "payments:refund" },
                 UserClaims = { "role" }
             },
             new ApiResource("catalog_api", "Hotel Catalog API")
@@ -72,8 +72,9 @@ public static class Config
                 AllowedGrantTypes = GrantTypes.Code,
                 RequireClientSecret = false,
                 RequirePkce = true,
+                RequireConsent = true,
                 RedirectUris = { "https://oauth.pstmn.io/v1/callback" },
-                AllowedScopes = { "openid", "profile", "email", "roles", "reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve", "catalog:read", "reviews:read", "reviews:create" },
+                AllowedScopes = { "openid", "profile", "email", "roles", "reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve", "catalog:read", "catalog:create", "catalog:update", "catalog:delete", "catalog:publish", "reviews:read", "reviews:create", "reviews:update", "reviews:delete", "reviews:approve", "payments:read", "payments:process", "payments:refund" },
                 AllowOfflineAccess = true,
                 AccessTokenLifetime = 15 * 60,
                 RefreshTokenUsage = TokenUsage.OneTimeOnly,
@@ -99,13 +100,13 @@ public static class Config
                 AllowedGrantTypes = GrantTypes.Code,
                 RequirePkce = true,
                 RequireClientSecret = false,
+                RequireConsent = true,
                 RedirectUris =
                 {
-                    "http://localhost:5000/swagger/oauth2-redirect.html",
-                    "https://localhost:5001/swagger/oauth2-redirect.html"
+                    "http://localhost:5000/swagger/oauth2-redirect.html"
                 },
-                AllowedCorsOrigins = { "http://localhost:5000", "https://localhost:5001" },
-                AllowedScopes = { "openid", "profile", "roles", "reservations:read", "catalog:read" },
+                AllowedCorsOrigins = { "http://localhost:5000" },
+                AllowedScopes = { "openid", "profile", "roles", "reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve", "catalog:read", "catalog:create", "catalog:update", "catalog:delete", "catalog:publish", "reviews:read", "reviews:create", "reviews:update", "reviews:delete", "reviews:approve", "payments:read", "payments:process", "payments:refund" },
                 AllowOfflineAccess = true,
                 AccessTokenLifetime = 15 * 60,
                 RefreshTokenUsage = TokenUsage.OneTimeOnly,

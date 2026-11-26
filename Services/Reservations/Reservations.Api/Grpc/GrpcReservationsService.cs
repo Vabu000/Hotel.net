@@ -22,6 +22,7 @@ public class GrpcReservationsService : ReservationsService.ReservationsServiceBa
         _logger = logger;
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "reservations:read")]
     public override async Task<GetAllReservationsResponse> GetAllReservations(
         GetAllReservationsRequest request,
         ServerCallContext context)
@@ -40,6 +41,7 @@ public class GrpcReservationsService : ReservationsService.ReservationsServiceBa
         return response;
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "reservations:read")]
     public override async Task<ReservationResponse> GetReservationById(
         GetReservationByIdRequest request,
         ServerCallContext context)
@@ -60,6 +62,7 @@ public class GrpcReservationsService : ReservationsService.ReservationsServiceBa
         };
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "reservations:read")]
     public override async Task<GetAllReservationsResponse> GetReservationsByRoom(
         GetReservationsByRoomRequest request,
         ServerCallContext context)
@@ -83,6 +86,7 @@ public class GrpcReservationsService : ReservationsService.ReservationsServiceBa
         return response;
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "reservations:read")]
     public override async Task<GetAllReservationsResponse> GetReservationsByClient(
         GetReservationsByClientRequest request,
         ServerCallContext context)
@@ -106,6 +110,7 @@ public class GrpcReservationsService : ReservationsService.ReservationsServiceBa
         return response;
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "catalog:read")]
     public override Task<RoomResponse> GetRoomById(
      GetRoomByIdRequest request,
      ServerCallContext context)
@@ -127,6 +132,7 @@ public class GrpcReservationsService : ReservationsService.ReservationsServiceBa
         return Task.FromResult(response);
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "reservations:read")]
     public override async Task<GetAllReservationsResponse> GetReservationsByHotel(
         GetReservationsByHotelRequest request,
         ServerCallContext context)
@@ -145,6 +151,7 @@ public class GrpcReservationsService : ReservationsService.ReservationsServiceBa
         return response;
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize(Policy = "reservations:create")]
     public override async Task<ReservationResponse> CreateReservation(
         CreateReservationRequest request,
         ServerCallContext context)

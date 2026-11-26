@@ -14,6 +14,7 @@ using HotelCatalog.Api.Services;
 using HotelCatalog.Api.HealthChecks;
 using HotelPlatform.ServiceDefaults.Authorization;
 using HotelPlatform.ServiceDefaults.Authentication;
+using HotelPlatform.ServiceDefaults.Swagger;
 
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
@@ -87,6 +88,9 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1",
         Description = "API for hotel catalog management with EF Core"
     });
+    c.AddPlatformOAuth(builder.Configuration,
+        "openid", "profile", "roles",
+        "catalog:read", "catalog:create", "catalog:update", "catalog:delete", "catalog:publish");
 });
 
 builder.Services.AddCors(options =>

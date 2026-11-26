@@ -15,8 +15,12 @@ dotnet user-secrets set "Parameters:sqlserver-password" "<SQL Server SA password
 dotnet user-secrets set "Parameters:jwt-signing-key" "<at least 32 characters>" --project Platform.AppHost/HotelPlatform.AppHost.csproj
 dotnet user-secrets set "Parameters:keycloak-admin-password" "<local secret>" --project Platform.AppHost/HotelPlatform.AppHost.csproj
 dotnet user-secrets set "Parameters:identityserver-aggregator-secret" "<local secret>" --project Platform.AppHost/HotelPlatform.AppHost.csproj
+dotnet user-secrets set "Parameters:identityserver-admin-password" "<password meeting Identity's policy>" --project Platform.AppHost/HotelPlatform.AppHost.csproj
+dotnet user-secrets set "Parameters:auth-admin-password" "<password meeting Identity's policy>" --project Platform.AppHost/HotelPlatform.AppHost.csproj
 dotnet run --project Platform.AppHost/HotelPlatform.AppHost.csproj --launch-profile http
 ```
+
+The AppHost also seeds `admin@hotel.local` in the IdentityServer and Auth databases using these local passwords. The Swagger UI is available at `http://localhost:5000/swagger`; it uses the public IdentityServer endpoint at `http://localhost:15135` and the Authorization Code flow with PKCE. That UI includes the Reservations, Catalog, Reviews, Payments, and Aggregator API documents.
 
 The AppHost starts PostgreSQL, SQL Server, MongoDB, Redis, RabbitMQ, Keycloak, and the services with persistent data volumes. Reservation, Catalog, Auth, and IdentityServer currently use PostgreSQL; SQL Server is provisioned for the lab infrastructure but is not yet connected to an application data context. Reservation applies its SQL scripts, Catalog applies EF Core migrations, and Reviews creates MongoDB indexes and idempotent seed documents at startup. Local credentials are read from user secrets and are not stored in the repository.
 

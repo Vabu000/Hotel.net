@@ -14,6 +14,7 @@ using HotelReviews.Application.Common.Interfaces;
 using HotelReviews.Infrastructure.Configuration;
 using HotelPlatform.ServiceDefaults.Authentication;
 using HotelPlatform.ServiceDefaults.Authorization;
+using HotelPlatform.ServiceDefaults.Swagger;
 using HotelReviews.WebApi.IntegrationEvents;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -98,6 +99,9 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "Clean Architecture API for managing hotel reviews and requests"
     });
+    options.AddPlatformOAuth(builder.Configuration,
+        "openid", "profile", "roles",
+        "reviews:read", "reviews:create", "reviews:update", "reviews:delete", "reviews:approve");
 });
 
 builder.Services.AddCors(options =>

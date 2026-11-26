@@ -10,6 +10,7 @@ using HotelReservation.Api.HealthChecks;
 using HotelReservation.Dal.Database;
 using Microsoft.Extensions.Hosting;
 using HotelPlatform.ServiceDefaults.Authentication;
+using HotelPlatform.ServiceDefaults.Swagger;
 
 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
@@ -35,7 +36,12 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options => options.AddPlatformOAuth(
+    builder.Configuration,
+    "openid", "profile", "roles",
+    "reservations:read", "reservations:create", "reservations:update", "reservations:delete", "reservations:approve",
+    "catalog:read", "catalog:create", "catalog:update", "catalog:delete", "catalog:publish",
+    "payments:read", "payments:process", "payments:refund"));
 
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
@@ -60,7 +66,15 @@ builder.Services.AddPermissionPolicies(
     "reservations:create",
     "reservations:update",
     "reservations:delete",
-    "reservations:approve");
+    "reservations:approve",
+    "catalog:read",
+    "catalog:create",
+    "catalog:update",
+    "catalog:delete",
+    "catalog:publish",
+    "payments:read",
+    "payments:process",
+    "payments:refund");
 
 // The integration-test host replaces business services and does not need a broker connection.
 if (!builder.Environment.IsEnvironment("Testing"))
