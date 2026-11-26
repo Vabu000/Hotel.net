@@ -17,10 +17,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\HotelReservation.Bll\HotelReservation.Bll.csproj" />
-    <ProjectReference Include="..\HotelReservation.Dal\HotelReservation.Dal.csproj" />
-    <ProjectReference Include="..\HotelReservation.Domain\HotelReservation.Domain.csproj" />
-    <ProjectReference Include="..\HotelReservationSystem\HotelReservation.Api.csproj" />
+    <ProjectReference Include="..\Reservations.Bll\HotelReservation.Bll.csproj" />
+    <ProjectReference Include="..\Reservations.Dal\HotelReservation.Dal.csproj" />
+    <ProjectReference Include="..\Reservations.Domain\HotelReservation.Domain.csproj" />
+    <ProjectReference Include="..\Reservations.Api\HotelReservation.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>
