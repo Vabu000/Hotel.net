@@ -1,0 +1,38 @@
+<Solution>
+  <Folder Name="/Platform/">
+    <Project Path="Platform.AppHost/HotelPlatform.AppHost.csproj" />
+    <Project Path="Platform.ServiceDefaults/HotelPlatform.ServiceDefaults.csproj" />
+    <Project Path="Platform.ApiGateway/HotelPlatform.ApiGateway.csproj" />
+    <Project Path="Platform.Aggregator/HotelPlatform.Aggregator.csproj" />
+    <Project Path="Platform.EventBus/Platform.EventBus.csproj" />
+    <Project Path="Platform.IdentityServer/Platform.IdentityServer.csproj" />
+  </Folder>
+  <Folder Name="/Services/Reservations/">
+    <Project Path="Services/Reservations/Reservations.Api/HotelReservation.Api.csproj" />
+    <Project Path="Services/Reservations/Reservations.Bll/HotelReservation.Bll.csproj" />
+    <Project Path="Services/Reservations/Reservations.Dal/HotelReservation.Dal.csproj" />
+    <Project Path="Services/Reservations/Reservations.Domain/HotelReservation.Domain.csproj" />
+    <Project Path="Services/Reservations/Reservations.Tests/HotelReservation.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Services/Catalog/">
+    <Project Path="Services/Catalog/Catalog.Api/HotelCatalog.Api.csproj" />
+    <Project Path="Services/Catalog/Catalog.Bll/HotelCatalog.Bll.csproj" />
+    <Project Path="Services/Catalog/Catalog.Dal/HotelCatalog.Dal.csproj" />
+    <Project Path="Services/Catalog/Catalog.Domain/HotelCatalog.Domain.csproj" />
+  </Folder>
+  <Folder Name="/Services/Reviews/">
+    <Project Path="Services/Reviews/Reviews.Domain/HotelReviews.Domain.csproj" />
+    <Project Path="Services/Reviews/Reviews.Application/HotelReviews.Application.csproj" />
+    <Project Path="Services/Reviews/Reviews.Infrastructure/HotelReviews.Infrastructure.csproj" />
+    <Project Path="Services/Reviews/Reviews.WebApi/HotelReviews.WebApi.csproj" />
+  </Folder>
+  <Folder Name="/Services/Auth/">
+    <Project Path="Services/Auth/Auth.Api/Auth.Api.csproj" />
+  </Folder>
+  <Folder Name="/Services/Payments/">
+    <Project Path="Services/Payments/Payments.Api/Payments.Api.csproj" />
+  </Folder>
+  <Folder Name="/Infra/">
+    <Project Path="infra/keycloak/HotelKeycloak.Infra.csproj" />
+  </Folder>
+</Solution>

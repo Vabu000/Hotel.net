@@ -4,11 +4,13 @@
 
 | Service | Database | Owned data | Cross-service fields |
 | --- | --- | --- | --- |
-| Reservation | PostgreSQL `HotelReservationsDB` | Clients, rooms, reservations, payments, reservation details and status history | `catalog_service_id` is a logical Catalog reference. Service name/rate and room nightly rate are booking-time snapshots. |
+| Reservation | PostgreSQL `HotelReservationsDB` | Clients, rooms, reservations, payments, reservation details, status history and the Catalog read model | `catalog_service_id` is a logical Catalog reference. `catalog_services` is an event-updated read copy; service and room rates in a booking are immutable snapshots. |
 | Catalog | PostgreSQL `HotelCatalogDB` | Room categories, category details, services, category-service links, discount categories | `clientId` in `clientdiscounts` is a logical Reservation reference and has no cross-database FK. |
 | Reviews | MongoDB | Reviews, requests and discussions | `clientId`, `roomId` and `reviewId` are logical references. No Mongo document creates a cross-service database constraint. |
+| Auth API | PostgreSQL `IdentityDb` | Application users, roles and rotating refresh tokens | Issues the platform's first-party JWTs. |
+| IdentityServer | PostgreSQL `IdentityServerDb`, `IdentityServerConfigDb`, `IdentityServerGrantsDb` | IdentityServer users, OAuth clients/scopes/resources, and persisted grants | The three EF stores use separate databases so each can initialize its own schema safely. |
 
-Copies are owned by the destination context. `Reservation.catalog_service_snapshots.name/price` and `reservations.room_rate_snapshot` are immutable snapshots captured when the reservation is made. Reviews and discussions retain IDs, not authoritative client or room records. The Aggregator cache is an expiring read copy; Catalog invalidates its local/distributed entries after catalog mutations and Reviews removes affected review keys after writes.
+Copies are owned by the destination context. `Reservation.catalog_services` is refreshed by Catalog events, while `Reservation.catalog_service_snapshots.name/price` and `reservations.room_rate_snapshot` are immutable snapshots captured when the reservation is made. Reviews keeps logical references and a separate Catalog category read model updated by Catalog events; physical review `roomId` values are not treated as category IDs. The Aggregator cache is an expiring read copy.
 
 ## Duplication and consistency policy
 
@@ -17,12 +19,13 @@ Copies are owned by the destination context. `Reservation.catalog_service_snapsh
 | `catalog_service_id` | Reservation service snapshot | Catalog service ID | Logical reference only; no cross-database FK. The snapshot's name and price below are captured at booking. |
 | `catalog_service_snapshots.name` | Reservation | Catalog service name | Immutable booking-time snapshot. Later Catalog edits do not rewrite an existing reservation. |
 | `catalog_service_snapshots.price` | Reservation | Catalog service price | Immutable booking-time snapshot. The recorded charge remains auditable if Catalog changes its price. |
+| `catalog_services.name/price` | Reservation | Catalog service | Updated from Catalog integration events; not used to rewrite existing booking snapshots. |
 | `reservations.room_rate_snapshot` | Reservation | Reservation-owned room rate | Captured when the reservation is created; immutable for that booking. |
 | `clientdiscounts.clientid` | Catalog | Reservation client ID | Logical reference used for discount assignment; Catalog does not own or edit the client record. |
 | `reviews.clientId` and `reviews.roomId` | Reviews | Reservation context | IDs only. No client or room profile is copied into Reviews; a missing reference is handled at the application boundary. |
 | Aggregator room/review result cache | Aggregator memory/Redis | Catalog, Reservation and Reviews | Expiring read copy. Catalog and Reviews publish invalidation events after writes; expiration bounds stale data if an event is missed. |
 
-There is no independently editable copy of another context's authoritative data. Event-driven cache refresh/invalidation is eventual; booking snapshots are intentionally immutable.
+Catalog remains the authoritative source for copied Catalog fields. Event-driven updates are eventual; booking snapshots are intentionally immutable.
 
 ## Reservation relational model
 
@@ -68,7 +71,7 @@ The `roomservices` junction entity also owns `additionalprice`, a non-negative c
 
 ## MongoDB document examples
 
-Collections: `reviews`, `requests`, `discussions`.
+Collections: `reviews`, `requests`, `discussions`, and the `catalog_room_categories` projection maintained by Catalog integration events.
 
 `reviews` and `requests` are independent documents. A discussion document combines references with embedded messages and allows optional fields to evolve:
 
@@ -81,11 +84,13 @@ Collections: `reviews`, `requests`, `discussions`.
     { "clientId": 1, "text": "Is there a quiet place to work?", "createdAt": "2025-01-17T10:00:00Z" },
     { "clientId": 2, "text": "Yes, the room has a desk by the window.", "createdAt": "2025-01-17T10:05:00Z" }
   ],
-  "moderation": { "state": "open", "labels": ["room-question"] }
+  "additionalData": { "moderationState": "open", "moderationLabel": "room-question" }
 }
 ```
 
-`roomId` and `reviewId` are references; `messages` are embedded and limited to 100 per discussion; `moderation` is flexible metadata preserved in `Discussion.AdditionalData`. The idempotent seed example is [seed.example.js](../HotelReviews.Infrastructure/Seeding/seed.example.js). It includes collection indexing, optional JSON Schema validation and an example rating aggregation:
+`roomId` and `reviewId` are references; `messages` are embedded and limited to 100 per discussion; `additionalData` stores optional string metadata. The idempotent seed example is [seed.example.js](../Services/Reviews/Reviews.Infrastructure/Seeding/seed.example.js). It includes collection indexing, optional JSON Schema validation and an example rating aggregation:
+
+The Reviews projection stores Catalog category IDs and names separately from a review's physical `roomId`. Category create and rename messages upsert by category ID, and consumed event IDs are recorded in `processed_events` so duplicate delivery is safe.
 
 ```javascript
 db.reviews.aggregate([

@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reviews-api
+  namespace: hotel-platform
+  labels:
+    app: reviews-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: reviews-api
+  template:
+    metadata:
+      labels:
+        app: reviews-api
+    spec:
+      containers:
+      - name: reviews-api
+        image: reviews-api:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: gateway-config
+        - secretRef:
+            name: platform-secrets
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          periodSeconds: 10
+          failureThreshold: 3

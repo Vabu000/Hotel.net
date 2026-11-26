@@ -34,6 +34,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HotelPlatform.AppHost", "Ho
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HotelPlatform.ServiceDefaults", "HotelPlatform.ServiceDefaults\HotelPlatform.ServiceDefaults.csproj", "{5638039A-6FC4-4EA5-809B-7C1EA5B26202}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Platform.EventBus", "Platform.EventBus\Platform.EventBus.csproj", "{F4A1B2C3-D4E5-6789-ABCD-1234567890EF}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{9DC03B3C-D38F-4514-A890-4220AD732E47}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Catalog", "Catalog", "{D30E3996-6CC2-4091-A745-56CDD05E3F6F}"
