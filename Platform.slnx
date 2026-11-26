@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Platform/">
+    <Project Path="Platform.AppHost/HotelPlatform.AppHost.csproj" />
+  </Folder>
+  <Folder Name="/Services/Reservations/">
+    <Project Path="Services/Reservations/Reservations.Api/HotelReservation.Api.csproj" />
+    <Project Path="Services/Reservations/Reservations.Bll/HotelReservation.Bll.csproj" />
+    <Project Path="Services/Reservations/Reservations.Dal/HotelReservation.Dal.csproj" />
+    <Project Path="Services/Reservations/Reservations.Domain/HotelReservation.Domain.csproj" />
+    <Project Path="Services/Reservations/Reservations.Tests/HotelReservation.Tests.csproj" />
+  </Folder>
+</Solution>

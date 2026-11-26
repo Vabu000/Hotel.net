@@ -1,9 +1,3 @@
-﻿using HotelReservation.Bll.DTOs;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using HotelReservation.Bll.DTOs;
 
 namespace HotelReservation.Bll.Services
