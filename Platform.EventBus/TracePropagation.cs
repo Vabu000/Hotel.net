@@ -33,18 +33,26 @@ public static class TracePropagation
             ea.BasicProperties.Headers,
             static (headers, key) =>
             {
-                if (headers is not null && headers.TryGetValue(key, out var raw) && raw is byte[] bytes)
+                if (headers is null || !headers.TryGetValue(key, out var raw) || raw is null)
                 {
-                    return [Encoding.UTF8.GetString(bytes)];
+                    return [];
                 }
 
-                return [];
+                return raw switch
+                {
+                    byte[] bytes => [Encoding.UTF8.GetString(bytes)],
+                    ReadOnlyMemory<byte> memory => [Encoding.UTF8.GetString(memory.Span)],
+                    string value => [value],
+                    _ => []
+                };
             });
 
         var activity = Source.StartActivity($"{queueName} process", ActivityKind.Consumer, parentContext.ActivityContext);
         activity?.SetTag("messaging.system", "rabbitmq");
         activity?.SetTag("messaging.destination.name", queueName);
         activity?.SetTag("messaging.message.id", ea.BasicProperties.MessageId);
+        activity?.SetTag("messaging.operation.name", "process");
+        activity?.SetTag("messaging.operation.type", "process");
         return activity;
     }
 }

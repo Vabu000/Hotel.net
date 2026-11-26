@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Platform.EventBus.IntegrationEvents;
@@ -23,6 +24,16 @@ public sealed class RabbitMqEventPublisher(
     {
         await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
         await EventTopology.DeclareAsync(channel, cancellationToken);
+        using var activity = TracePropagation.Source.StartActivity(
+            $"{typeof(TEvent).Name} publish",
+            ActivityKind.Producer);
+        activity?.SetTag("messaging.system", "rabbitmq");
+        activity?.SetTag("messaging.destination.name", exchange);
+        activity?.SetTag("messaging.destination.routing_key", routingKey);
+        activity?.SetTag("messaging.message.id", integrationEvent.EventId.ToString());
+        activity?.SetTag("messaging.operation.name", "publish");
+        activity?.SetTag("messaging.operation.type", "publish");
+
         var properties = new BasicProperties
         {
             Persistent = true,
@@ -31,21 +42,33 @@ public sealed class RabbitMqEventPublisher(
             Type = typeof(TEvent).Name,
             Headers = new Dictionary<string, object?>
             {
-                ["x-correlation-id"] = integrationEvent.CorrelationId,
                 ["schema-version"] = "1"
             }
         };
 
+        if (!string.IsNullOrWhiteSpace(integrationEvent.CorrelationId))
+        {
+            properties.Headers["x-correlation-id"] = integrationEvent.CorrelationId;
+        }
+
         TracePropagation.Inject(properties);
 
         var body = JsonSerializer.SerializeToUtf8Bytes(integrationEvent, JsonOptions);
-        await channel.BasicPublishAsync(
-            exchange,
-            routingKey,
-            mandatory: false,
-            properties,
-            body,
-            cancellationToken);
+        try
+        {
+            await channel.BasicPublishAsync(
+                exchange,
+                routingKey,
+                mandatory: false,
+                properties,
+                body,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
 
         logger.LogInformation(
             "Published {EventType} {EventId} with CorrelationId {CorrelationId} to {Exchange}/{RoutingKey}",

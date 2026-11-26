@@ -72,7 +72,7 @@ public sealed class CatalogSyncConsumer(
         await tx.CommitAsync(cancellationToken);
 
         logger.LogInformation(
-            "Replicated catalog service {ServiceId} ({ServiceName}, {NewPrice}) via event {EventId}",
-            evt.ServiceId, evt.ServiceName, evt.NewPrice, evt.EventId);
+            "Replicated catalog service {ServiceId} ({ServiceName}, {NewPrice}) via event {EventId} with CorrelationId {CorrelationId}",
+            evt.ServiceId, evt.ServiceName, evt.NewPrice, evt.EventId, evt.CorrelationId);
     }
 }

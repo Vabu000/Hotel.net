@@ -69,23 +69,20 @@ public sealed class ReviewsCatalogSyncConsumer(
         }
 
         var roomCategories = mongo.Database.GetCollection<BsonDocument>("catalog_room_categories");
-        var categoryProjection = new BsonDocument
-        {
-            ["_id"] = categoryId,
-            ["categoryId"] = categoryId,
-            ["name"] = categoryName,
-            ["updatedAt"] = DateTime.UtcNow,
-            ["lastEventId"] = eventId.ToString()
-        };
+        var update = Builders<BsonDocument>.Update
+            .Set("categoryId", categoryId)
+            .Set("name", categoryName)
+            .Set("updatedAt", DateTime.UtcNow)
+            .Set("lastEventId", eventId.ToString());
         if (description is not null)
         {
-            categoryProjection["description"] = description;
+            update = update.Set("description", description);
         }
 
-        await roomCategories.ReplaceOneAsync(
+        await roomCategories.UpdateOneAsync(
             Builders<BsonDocument>.Filter.Eq("_id", categoryId),
-            categoryProjection,
-            new ReplaceOptions { IsUpsert = true },
+            update,
+            new UpdateOptions { IsUpsert = true },
             cancellationToken);
 
         await processed.InsertOneAsync(
@@ -98,7 +95,24 @@ public sealed class ReviewsCatalogSyncConsumer(
             cancellationToken: cancellationToken);
 
         logger.LogInformation(
-            "Replicated room category {CategoryId} ({CategoryName}) to Reviews via {EventType} {EventId}",
-            categoryId, categoryName, eventType, eventId);
+            "Replicated room category {CategoryId} ({CategoryName}) to Reviews via {EventType} {EventId} with CorrelationId {CorrelationId}",
+            categoryId, categoryName, eventType, eventId, ExtractCorrelationId(ea));
+    }
+
+    private static string? ExtractCorrelationId(BasicDeliverEventArgs ea)
+    {
+        if (ea.BasicProperties.Headers is not { } headers ||
+            !headers.TryGetValue("x-correlation-id", out var value) || value is null)
+        {
+            return null;
+        }
+
+        return value switch
+        {
+            byte[] bytes => System.Text.Encoding.UTF8.GetString(bytes),
+            ReadOnlyMemory<byte> memory => System.Text.Encoding.UTF8.GetString(memory.Span),
+            string text => text,
+            _ => value.ToString()
+        };
     }
 }

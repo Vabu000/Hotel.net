@@ -22,7 +22,7 @@ public static class EventTopology
 
         await channel.ExchangeDeclareAsync(
             CatalogDlxExchange,
-            ExchangeType.Fanout,
+            ExchangeType.Direct,
             durable: true,
             cancellationToken: cancellationToken);
 
@@ -52,7 +52,8 @@ public static class EventTopology
             autoDelete: false,
             arguments: new Dictionary<string, object?>
             {
-                ["x-dead-letter-exchange"] = CatalogDlxExchange
+                ["x-dead-letter-exchange"] = CatalogDlxExchange,
+                ["x-dead-letter-routing-key"] = $"{queueName}.dlq"
             },
             cancellationToken: cancellationToken);
 
@@ -76,7 +77,7 @@ public static class EventTopology
         await channel.QueueBindAsync(
             dlqName,
             CatalogDlxExchange,
-            string.Empty,
+            dlqName,
             cancellationToken: cancellationToken);
     }
 }

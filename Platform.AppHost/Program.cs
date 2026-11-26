@@ -123,10 +123,12 @@ var aggregator = builder.AddProject<Projects.HotelPlatform_Aggregator>("aggregat
     .WithReference(reservationService)
     .WithReference(catalogService)
     .WithReference(redis)
+    .WithReference(rabbitmq)
     .WaitFor(reviewsService)
     .WaitFor(reservationService)
     .WaitFor(catalogService)
     .WaitFor(redis)
+    .WaitFor(rabbitmq)
     .WithHttpHealthCheck("/health/ready");
 
 var gateway = builder.AddProject<Projects.HotelPlatform_ApiGateway>("gateway")
