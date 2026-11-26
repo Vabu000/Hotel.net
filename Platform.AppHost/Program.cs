@@ -53,6 +53,7 @@ var keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26
 var authService = builder.AddProject<Projects.Auth_Api>("auth-service")
     .WithReference(identityDb)
     .WithEnvironment("Jwt__SecretKey", jwtSigningKey)
+    .WithHttpEndpoint(targetPort: 8080)
     .WaitFor(identityDb)
     .WithHttpHealthCheck("/health/ready");
 
@@ -61,6 +62,7 @@ var identityServer = builder.AddProject<Projects.Platform_IdentityServer>("ident
     .WithReference(identityServerConfigDb)
     .WithReference(identityServerGrantsDb)
     .WithEnvironment("IdentityServer__Clients__AggregatorSecret", aggregatorClientSecret)
+    .WithHttpEndpoint(targetPort: 8080)
     .WaitFor(identityServerDb)
     .WaitFor(identityServerConfigDb)
     .WaitFor(identityServerGrantsDb)
@@ -71,6 +73,7 @@ var paymentsService = builder.AddProject<Projects.Payments_Api>("payments-servic
     .WithEnvironment("Jwt__SecretKey", jwtSigningKey)
     .WithEnvironment("IdentityServer__Authority", identityServer.GetEndpoint("http"))
     .WithEnvironment("Keycloak__Authority", keycloak.GetEndpoint("http"))
+    .WithHttpEndpoint(targetPort: 8080)
     .WaitFor(identityServer)
     .WaitFor(keycloak)
     .WithHttpHealthCheck("/health/ready");

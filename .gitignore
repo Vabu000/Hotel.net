@@ -55,6 +55,10 @@ nunit-*.xml
 [Rr]eleasePS/
 dlldata.c
 
+# Aspirate local state and generated AppHost manifest
+Platform.AppHost/aspirate-state.json
+Platform.AppHost/manifest.json
+
 # Benchmark Results
 BenchmarkDotNet.Artifacts/
 
