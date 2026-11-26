@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: reviews-api
-        image: reviews-api:v1
+        image: reviews-api:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080

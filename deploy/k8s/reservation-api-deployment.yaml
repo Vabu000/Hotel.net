@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: reservation-api
-        image: reservation-api:v1
+        image: reservation-api:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: reservation-api
+  name: reservation-service
   namespace: hotel-platform
   labels:
     app: reservation-api

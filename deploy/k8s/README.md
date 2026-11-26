@@ -1,69 +1,52 @@
-# Лабораторна № 10 — Розгортання в Kubernetes
+# Kubernetes Deployment (Lab 10)
 
-## Опис
-Розгортання платформи Hotel Reservation System у локальному кластері Kubernetes двома способами:
-1. Автоматична генерація маніфестів через Aspir8 (aspirate) з AppHost
-2. Ручне створення YAML-маніфестів
-
-## Структура
-- `Dockerfile` — багатоетапний Dockerfile для кожного сервісу (SDK build → publish → aspnet runtime)
-- `namespace.yaml` — Namespace `hotel-platform`
-- `configmap.yaml` — ConfigMap з адресами сервісів для Gateway
-- `secrets.yaml` — Secret з рядками підключення та ключем JWT
-- `*-deployment.yaml` — Deployment з 2 репліками, liveness/readiness probes
-- `*-service.yaml` — ClusterIP Service для кожного сервісу
-- `aspirate-output/` — директорія для маніфестів, згенерованих aspirate
-
-## Сервіси
-| Сервіс | Образ | Port | Health endpoint |
-|--------|-------|------|-----------------|
-| auth-server | auth-server:v1 | 8080 | /health |
-| catalog-api | catalog-api:v1 | 8080 | /health/live, /health/ready |
-| reservation-api | reservation-api:v1 | 8080 | /health/live, /health/ready |
-| reviews-api | reviews-api:v1 | 8080 | /health/live, /health/ready |
-| aggregator | aggregator:v1 | 8080 | /health/live, /health/ready |
-| gateway | gateway:v1 | 8080 | /health/live, /health/ready |
-
-## Розгортання
-
-### Крок 1: Увімкнути Kubernetes в Docker Desktop
-```bash
-kubectl config use-context docker-desktop
-kubectl version --client
-```
-
-### Крок 2: Встановити aspirate
-```bash
-dotnet tool install -g aspirate
-```
-
-### Крок 3: Згенерувати маніфести через Aspirate
+## 1. Automated Deployment via Aspirate
 ```bash
 cd Platform.AppHost
 aspirate init
 aspirate generate
-aspirate apply
+kubectl apply -k ./aspirate-output
 ```
 
-### Крок 4: Ручне розгортання ключових сервісів
+## 2. Manual Deployment (`deploy/k8s/`)
+
+Build the local service images from the repository root:
+```bash
+docker build -t catalog-api:latest -f Services/Catalog/Catalog.Api/Dockerfile .
+docker build -t reservation-api:latest -f Services/Reservations/Reservations.Api/Dockerfile .
+docker build -t reviews-api:latest -f Services/Reviews/Reviews.WebApi/Dockerfile .
+docker build -t auth-api:latest -f Services/Auth/Auth.Api/Dockerfile .
+docker build -t payments-api:latest -f Services/Payments/Payments.Api/Dockerfile .
+docker build -t identityserver:latest -f Platform.IdentityServer/Dockerfile .
+docker build -t aggregator:latest -f Platform.Aggregator/Dockerfile .
+docker build -t gateway:latest -f Platform.ApiGateway/Dockerfile .
+```
+
+Create namespace and ConfigMap:
 ```bash
 kubectl apply -f deploy/k8s/namespace.yaml
 kubectl apply -f deploy/k8s/configmap.yaml
-kubectl apply -f deploy/k8s/secrets.yaml
-kubectl apply -f deploy/k8s/catalog-api-deployment.yaml -f deploy/k8s/catalog-api-service.yaml
-kubectl apply -f deploy/k8s/gateway-deployment.yaml -f deploy/k8s/gateway-service.yaml
 ```
 
-### Крок 5: Перевірка
+The manifests expect PostgreSQL, MongoDB, Redis, RabbitMQ and Keycloak to be reachable in the cluster. Supply database URLs and credentials out-of-band; never commit real values to git. The Secret must include:
 ```bash
-kubectl get pods -n hotel-platform
-kubectl get services -n hotel-platform
-kubectl port-forward service/gateway 8080:80 -n hotel-platform
-curl http://localhost:8080/api/roomcategory/paged?page=1&pageSize=5
+kubectl create secret generic platform-secrets -n hotel-platform --dry-run=client -o yaml \
+  --from-literal=ConnectionStrings__HotelCatalogDB="$CATALOG_DB" \
+  --from-literal=ConnectionStrings__HotelReservationsDB="$RESERVATIONS_DB" \
+  --from-literal=ConnectionStrings__IdentityDb="$IDENTITY_DB" \
+  --from-literal=ConnectionStrings__IdentityServerDb="$IDENTITY_SERVER_DB" \
+  --from-literal=ConnectionStrings__IdentityServerConfigDb="$IDENTITY_SERVER_CONFIG_DB" \
+  --from-literal=ConnectionStrings__IdentityServerGrantsDb="$IDENTITY_SERVER_GRANTS_DB" \
+  --from-literal=ConnectionStrings__rabbitmq="$RABBITMQ_CONNECTION" \
+  --from-literal=MongoDbSettings__ConnectionString="$MONGODB_CONNECTION" \
+  --from-literal=Jwt__SecretKey="$JWT_SECRET" \
+  --from-literal=IdentityServer__Clients__AggregatorSecret="$AGGREGATOR_CLIENT_SECRET" \
+  --from-literal=KC_BOOTSTRAP_ADMIN_PASSWORD="$KEYCLOAK_ADMIN_PASSWORD" | kubectl apply -f -
 ```
 
-## Контрольні точки
-- Усі поди в стані Running
-- Запит через gateway повертає дані
-- Після видалення поду Deployment створює новий
-- При недоступній базі под стає NotReady (readiness), але не перезапускається (liveness)
+Apply Deployments and ClusterIP Services:
+```bash
+kubectl apply -k deploy/k8s/
+kubectl port-forward -n hotel-platform service/gateway 8080:80
+curl http://localhost:8080/health/ready
+```

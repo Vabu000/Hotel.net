@@ -5,8 +5,14 @@ metadata:
   namespace: hotel-platform
 data:
   ASPNETCORE_ENVIRONMENT: "Production"
-  services__catalog-api__http__0: "http://catalog-api"
-  services__reservation-api__http__0: "http://reservation-api"
-  services__reviews-api__http__0: "http://reviews-api"
-  services__auth-server__http__0: "http://auth-server"
+  services__catalog-service__http__0: "http://catalog-service"
+  services__reservation-service__http__0: "http://reservation-service"
+  services__reviews-service__http__0: "http://reviews-service"
+  services__auth-service__http__0: "http://auth-service"
+  services__payments-service__http__0: "http://payments-service"
   services__aggregator__http__0: "http://aggregator"
+  services__identityserver__http__0: "http://identityserver"
+  ConnectionStrings__redis: "redis:6379"
+  MongoDbSettings__DatabaseName: "hotel-reviews"
+  IdentityServer__Authority: "http://identityserver"
+  Keycloak__Authority: "http://keycloak/realms/HotelRealm"

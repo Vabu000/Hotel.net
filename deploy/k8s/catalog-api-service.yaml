@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: catalog-api
+  name: catalog-service
   namespace: hotel-platform
   labels:
     app: catalog-api

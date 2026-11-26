@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: hotel-platform
+data:
+  00-create-databases.sql: |
+    CREATE DATABASE "HotelReservationsDB";
+    CREATE DATABASE "HotelCatalogDB";
+    CREATE DATABASE "IdentityDb";
+    CREATE DATABASE "IdentityServerDb";
+    CREATE DATABASE "IdentityServerConfigDb";
+    CREATE DATABASE "IdentityServerGrantsDb";
+    CREATE DATABASE "keycloakdb";

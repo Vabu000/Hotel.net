@@ -22,6 +22,7 @@ public sealed class RabbitMqEventPublisher(
         where TEvent : IntegrationEvent
     {
         await using var channel = await connection.CreateChannelAsync(cancellationToken: cancellationToken);
+        await EventTopology.DeclareAsync(channel, cancellationToken);
         var properties = new BasicProperties
         {
             Persistent = true,
@@ -35,6 +36,8 @@ public sealed class RabbitMqEventPublisher(
             }
         };
 
+        TracePropagation.Inject(properties);
+
         var body = JsonSerializer.SerializeToUtf8Bytes(integrationEvent, JsonOptions);
         await channel.BasicPublishAsync(
             exchange,
@@ -45,9 +48,10 @@ public sealed class RabbitMqEventPublisher(
             cancellationToken);
 
         logger.LogInformation(
-            "Published {EventType} {EventId} to {Exchange}/{RoutingKey}",
+            "Published {EventType} {EventId} with CorrelationId {CorrelationId} to {Exchange}/{RoutingKey}",
             typeof(TEvent).Name,
             integrationEvent.EventId,
+            integrationEvent.CorrelationId,
             exchange,
             routingKey);
     }

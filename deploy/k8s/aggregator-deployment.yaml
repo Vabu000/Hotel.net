@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: aggregator
-        image: aggregator:v1
+        image: aggregator:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080

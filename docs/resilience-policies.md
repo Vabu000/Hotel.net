@@ -4,6 +4,8 @@
 
 `HotelPlatform.ServiceDefaults.AddServiceDefaults` registers one standard resilience handler for `HttpClientFactory` clients. It applies a 15-second total timeout, a 5-second per-attempt timeout, up to two retries with a 200 ms base delay and jitter, and a circuit breaker with a 30-second sampling window, minimum throughput of five calls, and a 10-second break. The same defaults also configure service discovery and CorrelationId propagation.
 
+ASP.NET Core endpoints also use a fixed-window limiter of 120 requests per minute per client IP. Health probes use a separate, larger bucket so orchestration checks do not consume an application's request allowance. Rejected calls return HTTP 429 with Problem Details.
+
 ## Aggregator gRPC read policies
 
 Only read methods are listed in each gRPC `ServiceConfig`. Mutating operations are not retried. The gRPC retry policy handles `Unavailable`; the per-method deadline bounds the total time spent on the call.
