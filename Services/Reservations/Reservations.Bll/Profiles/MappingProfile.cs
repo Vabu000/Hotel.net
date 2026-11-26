@@ -31,6 +31,7 @@ namespace HotelReservation.Bll.Profiles
             CreateMap<ReservationDto, Reservation>();
             CreateMap<CreateReservationDto, Reservation>()
                 .ForMember(dest => dest.ReservationId, opt => opt.Ignore())
+                .ForMember(dest => dest.RoomRateSnapshot, opt => opt.Ignore())
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => ReservationStatus.Pending))
                 .ForMember(dest => dest.Client, opt => opt.Ignore())
                 .ForMember(dest => dest.Room, opt => opt.Ignore())

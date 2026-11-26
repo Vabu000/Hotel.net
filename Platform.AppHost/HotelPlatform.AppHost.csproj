@@ -13,10 +13,21 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting" Version="13.6.5" />
     <PackageReference Include="Aspire.Hosting.AppHost" Version="13.6.5" />
+    <PackageReference Include="Aspire.Hosting.MongoDB" Version="13.6.5" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" Version="13.6.5" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="13.6.5" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Services\Reservations\Reservations.Api\HotelReservation.Api.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Services\Reviews\Reviews.WebApi\HotelReviews.WebApi.csproj" />
+		<ProjectReference Include="..\Services\Reservations\Reservations.Api\HotelReservation.Api.csproj" />
+		<ProjectReference Include="..\Services\Catalog\Catalog.Api\HotelCatalog.Api.csproj" />
+		<ProjectReference Include="..\Services\Auth\Auth.Api\Auth.Api.csproj" />
+		<ProjectReference Include="..\Services\Payments\Payments.Api\Payments.Api.csproj" />
+		<ProjectReference Include="..\Platform.IdentityServer\Platform.IdentityServer.csproj" />
+		<ProjectReference Include="..\Platform.ApiGateway\HotelPlatform.ApiGateway.csproj" />
+		<ProjectReference Include="..\Platform.Aggregator\HotelPlatform.Aggregator.csproj" />
+	</ItemGroup>
+
 </Project>

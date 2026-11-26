@@ -1,44 +1,105 @@
-# Data model and context ownership
+# Hotel Reservation System data model
 
-The platform separates booking transactions, hotel catalog data and guest-generated content. Each context owns its schema. Cross-context values are IDs and snapshots, never foreign keys.
+## Service boundaries and ownership
 
-## Reservation context — `db/p1/`
-
-```mermaid
-erDiagram
-  CLIENTS ||--o{ RESERVATIONS : places
-  ROOMS ||--o{ RESERVATIONS : booked_for
-  RESERVATIONS ||--|| RESERVATION_DETAILS : has
-  RESERVATIONS ||--o{ PAYMENTS : receives
-  RESERVATIONS ||--o{ RESERVATION_SERVICES : selects
-  CATALOG_SERVICE_SNAPSHOTS ||--o{ RESERVATION_SERVICES : snapshots
-  RESERVATIONS ||--o{ RESERVATION_STATUS_HISTORY : records
-```
-
-The reservation database owns clients, physical rooms, reservations, payment records, status history and booking details. Reservation and payment changes use a shared transaction. Soft deletion, audit columns and a version column support auditability and optimistic concurrency. Room rates and selected service prices are snapshots, so catalog changes do not rewrite existing bookings.
-
-## Catalog context — `db/p2/`
-
-```mermaid
-erDiagram
-  ROOM_CATEGORIES ||--|| ROOM_CATEGORY_DETAILS : describes
-  ROOM_CATEGORIES ||--o{ ROOM_SERVICES : offers
-  SERVICES ||--o{ ROOM_SERVICES : assigned_to
-  DISCOUNT_CATEGORIES ||--o{ CLIENT_DISCOUNTS : grants
-  CLIENTS ||--o{ CLIENT_DISCOUNTS : receives
-```
-
-Catalog owns room categories, category details, services, category-service assignments and discount definitions. `ROOM_SERVICES` stores the category-specific additional price. Client IDs in discount assignments are external identifiers; the Catalog database does not create a foreign key into Reservation.
-
-## Reviews context — `db/p3/`
-
-MongoDB stores reviews, guest requests and discussions. Reviews embed short author and room-display snapshots needed to render a document. Discussions are embedded with a review; room and category identifiers are references to other contexts. The collection validators and indexes are declared separately from the idempotent seed data.
-
-## Duplication policy
-
-| Value | Owner | Where copied | Update rule |
+| Service | Database | Owned data | Cross-service fields |
 | --- | --- | --- | --- |
-| Room category name | Catalog | Reviews display projection | Upsert on category create or rename event. |
-| Service name and price | Catalog | Reservation service snapshot | Copy when selected for a booking; do not update existing booking history. |
-| Room ID | Reservation | Review document reference | Store as an identifier only; no cross-database constraint. |
-| Booking-time room rate | Reservation | Reservation row | Capture at booking creation; preserve after a later catalog price change. |
+| Reservation | PostgreSQL `HotelReservationsDB` | Clients, rooms, reservations, payments, reservation details, status history and the Catalog read model | `catalog_service_id` is a logical Catalog reference. `catalog_services` is an event-updated read copy; service and room rates in a booking are immutable snapshots. |
+| Catalog | PostgreSQL `HotelCatalogDB` | Room categories, category details, services, category-service links, discount categories | `clientId` in `clientdiscounts` is a logical Reservation reference and has no cross-database FK. |
+| Reviews | MongoDB | Reviews, requests and discussions | `clientId`, `roomId` and `reviewId` are logical references. No Mongo document creates a cross-service database constraint. |
+| Auth API | PostgreSQL `IdentityDb` | Application users, roles and rotating refresh tokens | Issues the platform's first-party JWTs. |
+| IdentityServer | PostgreSQL `IdentityServerDb`, `IdentityServerConfigDb`, `IdentityServerGrantsDb` | IdentityServer users, OAuth clients/scopes/resources, and persisted grants | The three EF stores use separate databases so each can initialize its own schema safely. |
+
+Copies are owned by the destination context. `Reservation.catalog_services` is refreshed by Catalog events, while `Reservation.catalog_service_snapshots.name/price` and `reservations.room_rate_snapshot` are immutable snapshots captured when the reservation is made. Reviews keeps logical references and a separate Catalog category read model updated by Catalog events; physical review `roomId` values are not treated as category IDs. The Aggregator cache is an expiring read copy.
+
+## Duplication and consistency policy
+
+| Field or copy | Stored in | Authoritative source | Consistency policy |
+| --- | --- | --- | --- |
+| `catalog_service_id` | Reservation service snapshot | Catalog service ID | Logical reference only; no cross-database FK. The snapshot's name and price below are captured at booking. |
+| `catalog_service_snapshots.name` | Reservation | Catalog service name | Immutable booking-time snapshot. Later Catalog edits do not rewrite an existing reservation. |
+| `catalog_service_snapshots.price` | Reservation | Catalog service price | Immutable booking-time snapshot. The recorded charge remains auditable if Catalog changes its price. |
+| `catalog_services.name/price` | Reservation | Catalog service | Updated from Catalog integration events; not used to rewrite existing booking snapshots. |
+| `reservations.room_rate_snapshot` | Reservation | Reservation-owned room rate | Captured when the reservation is created; immutable for that booking. |
+| `clientdiscounts.clientid` | Catalog | Reservation client ID | Logical reference used for discount assignment; Catalog does not own or edit the client record. |
+| `reviews.clientId` and `reviews.roomId` | Reviews | Reservation context | IDs only. No client or room profile is copied into Reviews; a missing reference is handled at the application boundary. |
+| Aggregator room/review result cache | Aggregator memory/Redis | Catalog, Reservation and Reviews | Expiring read copy. Catalog and Reviews publish invalidation events after writes; expiration bounds stale data if an event is missed. |
+
+Catalog remains the authoritative source for copied Catalog fields. Event-driven updates are eventual; booking snapshots are intentionally immutable.
+
+## Reservation relational model
+
+```mermaid
+erDiagram
+    CLIENTS ||--o{ RESERVATIONS : places
+    ROOMS ||--o{ RESERVATIONS : booked_for
+    RESERVATIONS ||--|| RESERVATION_DETAILS : has
+    RESERVATIONS ||--o{ PAYMENTS : paid_by
+    RESERVATIONS ||--o{ RESERVATION_STATUS_HISTORY : changes
+    RESERVATIONS ||--o{ RESERVATION_SERVICES : includes
+    CATALOG_SERVICE_SNAPSHOTS ||--o{ RESERVATION_SERVICES : snapshots
+```
+
+`reservation_services` is the junction table between reservations and locally stored catalog-service snapshots. `catalog_service_id` is intentionally not a foreign key to the separate Catalog database.
+
+## Catalog relational model
+
+```mermaid
+erDiagram
+    ROOMCATEGORIES ||--o| ROOMCATEGORYDETAILS : describes
+    ROOMCATEGORIES ||--o{ ROOMSERVICES : offers
+    SERVICES ||--o{ ROOMSERVICES : assigned_to
+    DISCOUNTCATEGORIES ||--o{ CLIENTDISCOUNTS : grants
+```
+
+`roomservices` implements the M:N relationship between room categories and services. `roomcategorydetails.categoryid` is both its primary key and FK, implementing 1:1. `clientdiscounts.clientid` references the Reservation context by identifier only.
+
+The `roomservices` junction entity also owns `additionalprice`, a non-negative category-specific surcharge. This is relationship data, distinct from the base `services.price`, and is exposed with the category's service assignments.
+
+## Index purpose
+
+| Index | Intended query |
+| --- | --- |
+| `ix_reservations_client_checkin` | Active reservations for one client, newest check-in first. |
+| `ix_reservations_room_dates` | Active reservations for a room over an overlapping date range. |
+| `ix_reservations_status` | Reservations by workflow status, ordered by check-in date. |
+| `ix_payment_reservation_date` | Payments for one reservation, newest first. |
+| `ix_reservation_status_history` | Status changes for one reservation, newest first. |
+| `ix_clients_active_email`, `ix_rooms_active_number` | Look up active clients by email and active rooms by room number. |
+| Catalog `services.name` and `roomcategories.name` indexes | Support service/category name lookup and filtering. |
+| Catalog unique `discountcategories.name` index | Prevent duplicate discount category names and support exact lookup. |
+
+## MongoDB document examples
+
+Collections: `reviews`, `requests`, `discussions`, and the `catalog_room_categories` projection maintained by Catalog integration events.
+
+`reviews` and `requests` are independent documents. A discussion document combines references with embedded messages and allows optional fields to evolve:
+
+```json
+{
+  "roomId": 101,
+  "reviewId": "65a000000000000000000001",
+  "subject": "Question about the room review",
+  "messages": [
+    { "clientId": 1, "text": "Is there a quiet place to work?", "createdAt": "2025-01-17T10:00:00Z" },
+    { "clientId": 2, "text": "Yes, the room has a desk by the window.", "createdAt": "2025-01-17T10:05:00Z" }
+  ],
+  "additionalData": { "moderationState": "open", "moderationLabel": "room-question" }
+}
+```
+
+`roomId` and `reviewId` are references; `messages` are embedded and limited to 100 per discussion; `additionalData` stores optional string metadata. The idempotent seed example is [seed.example.js](../Services/Reviews/Reviews.Infrastructure/Seeding/seed.example.js). It includes collection indexing, optional JSON Schema validation and an example rating aggregation:
+
+The Reviews projection stores Catalog category IDs and names separately from a review's physical `roomId`. Category create and rename messages upsert by category ID, and consumed event IDs are recorded in `processed_events` so duplicate delivery is safe.
+
+```javascript
+db.reviews.aggregate([
+  { $match: { isApproved: true } },
+  { $group: { _id: "$roomId", averageRating: { $avg: "$rating" }, reviewCount: { $sum: 1 } } },
+  { $sort: { averageRating: -1 } }
+]);
+```
+
+## Recreating the databases
+
+Reservation applies embedded scripts in numeric order. `001_schema.sql` creates the initial schema, `002_procedures.sql` defines transactional status operations, `003_seed.sql` inserts idempotent sample data, `004_room_rate_snapshot.sql` adds the immutable rate snapshot, and `005_audit_and_concurrency.sql` completes audit/soft-delete/version columns. Catalog uses EF Core migrations and seed data. Reviews creates indexes and inserts sample documents when the service starts; `seed.example.js` can also be run manually with `mongosh` against the configured Reviews database.

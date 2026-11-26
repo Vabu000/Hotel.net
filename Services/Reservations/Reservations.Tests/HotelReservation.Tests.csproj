@@ -12,14 +12,19 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.16" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Reservations.Bll\HotelReservation.Bll.csproj" />
+    <ProjectReference Include="..\..\Catalog\Catalog.Dal\HotelCatalog.Dal.csproj" />
+    <ProjectReference Include="..\..\..\Platform.Aggregator\HotelPlatform.Aggregator.csproj" />
+    <ProjectReference Include="..\..\..\Platform.ServiceDefaults\HotelPlatform.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Reservations.Dal\HotelReservation.Dal.csproj" />
     <ProjectReference Include="..\Reservations.Domain\HotelReservation.Domain.csproj" />
+    <ProjectReference Include="..\..\Reviews\Reviews.Domain\HotelReviews.Domain.csproj" />
     <ProjectReference Include="..\Reservations.Api\HotelReservation.Api.csproj" />
   </ItemGroup>
 

@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using HotelReservation.Bll.DTOs;
 using HotelReservation.Bll.Services;
 using HotelReservation.Domain.Exceptions;
+
+using HotelPlatform.ServiceDefaults.Authorization;
 
 namespace HotelReservation.Api.Controllers
 {
@@ -20,6 +22,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet]
+        [RequirePermission("payments:read")]
         [ProducesResponseType(typeof(IEnumerable<PaymentDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<PaymentDto>>> GetAllPayments(CancellationToken cancellationToken)
         {
@@ -36,6 +39,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [RequirePermission("payments:read")]
         [ProducesResponseType(typeof(PaymentDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<PaymentDto>> GetPayment(int id, CancellationToken cancellationToken)
@@ -59,6 +63,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpPost]
+        [RequirePermission("payments:process")]
         [ProducesResponseType(typeof(PaymentDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -95,6 +100,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [RequirePermission("payments:refund")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -127,6 +133,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet("by-reservation/{reservationId:int}")]
+        [RequirePermission("payments:read")]
         [ProducesResponseType(typeof(IEnumerable<PaymentDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<PaymentDto>>> GetPaymentsByReservation(int reservationId, CancellationToken cancellationToken)
         {
@@ -143,6 +150,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpPost("process")]
+        [RequirePermission("payments:process")]
         [ProducesResponseType(typeof(PaymentDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

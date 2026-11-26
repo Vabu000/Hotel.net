@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using HotelReservation.Bll.DTOs;
 using HotelReservation.Bll.Services;
 using HotelReservation.Domain.Exceptions;
+
+using HotelPlatform.ServiceDefaults.Authorization;
 
 namespace HotelReservation.Api.Controllers
 {
@@ -20,6 +22,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet]
+        [RequirePermission("catalog:read")]
         [ProducesResponseType(typeof(IEnumerable<RoomDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<RoomDto>>> GetAllRooms(CancellationToken cancellationToken)
         {
@@ -37,6 +40,7 @@ namespace HotelReservation.Api.Controllers
 
         
         [HttpGet("{id:int}")]
+        [RequirePermission("catalog:read")]
         [ProducesResponseType(typeof(RoomDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<RoomDto>> GetRoom(int id, CancellationToken cancellationToken)
@@ -61,6 +65,7 @@ namespace HotelReservation.Api.Controllers
 
       
         [HttpPost]
+        [RequirePermission("catalog:create")]
         [ProducesResponseType(typeof(RoomDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -92,6 +97,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [RequirePermission("catalog:update")]
         [ProducesResponseType(typeof(RoomDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -133,6 +139,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [RequirePermission("catalog:delete")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -165,6 +172,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet("available")]
+        [RequirePermission("catalog:read")]
         [ProducesResponseType(typeof(IEnumerable<AvailableRoomDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<IEnumerable<AvailableRoomDto>>> GetAvailableRooms(
@@ -189,6 +197,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet("by-number/{roomNumber}")]
+        [RequirePermission("catalog:read")]
         [ProducesResponseType(typeof(RoomDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<RoomDto>> GetRoomByNumber(string roomNumber, CancellationToken cancellationToken)

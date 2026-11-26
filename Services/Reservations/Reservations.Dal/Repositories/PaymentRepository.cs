@@ -1,111 +1,70 @@
-﻿using Dapper;
+using Dapper;
 using Npgsql;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using HotelReservation.Domain.Entities;
 using HotelReservation.Dal.Interfaces;
 
 namespace HotelReservation.Dal.Repositories
 {
-    public class PaymentRepository : IPaymentRepository
+    public class PaymentRepository : BaseDapperRepository<Payment>, IPaymentRepository
     {
-        private readonly string _connectionString;
         private readonly ILogger<PaymentRepository> _logger;
 
-        public PaymentRepository(IConfiguration configuration, ILogger<PaymentRepository> logger)
+        public PaymentRepository(
+            NpgsqlConnection connection,
+            Func<NpgsqlTransaction?> currentTransaction,
+            ILogger<PaymentRepository> logger)
+            : base(connection, currentTransaction)
         {
-            _connectionString = configuration.GetConnectionString("HotelReservationsDB") ??
-                throw new ArgumentNullException("Connection string not found");
             _logger = logger;
         }
 
-        public async Task<Payment?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+        protected override string TableName => "payments";
+        protected override string IdColumn => "paymentid";
+        protected override string SelectColumns => "paymentid, reservationid, amount, paymentdate, method, version AS Version";
+        protected override string InsertSql => @"
+            INSERT INTO payments (reservationid, amount, paymentdate, method)
+            VALUES (@ReservationId, @Amount, @PaymentDate, @Method)
+            RETURNING paymentid";
+        protected override string UpdateSql => @"
+            UPDATE payments
+            SET reservationid = @ReservationId, amount = @Amount,
+                paymentdate = @PaymentDate, method = @Method, updatedat = now(), version = version + 1
+            WHERE paymentid = @PaymentId AND isdeleted = false AND version = @Version";
+
+        protected override object GetInsertParameters(Payment entity) => new
         {
-            const string sql = @"
-                SELECT paymentid, reservationid, amount, paymentdate, method 
-                FROM payments 
-                WHERE paymentid = @Id";
+            entity.ReservationId,
+            entity.Amount,
+            entity.PaymentDate,
+            entity.Method,
+            entity.Version
+        };
 
-            await using var connection = new NpgsqlConnection(_connectionString);
-
-            return await connection.QueryFirstOrDefaultAsync<Payment>(sql, new { Id = id });
-        }
-
-        public async Task<IEnumerable<Payment>> GetAllAsync(CancellationToken cancellationToken = default)
+        protected override object GetUpdateParameters(Payment entity) => new
         {
+            entity.PaymentId,
+            entity.ReservationId,
+            entity.Amount,
+            entity.PaymentDate,
+            entity.Method,
+            entity.Version
+        };
+
+        public async Task<IEnumerable<Payment>> GetByReservationIdAsync(
+            int reservationId,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureOpenAsync(cancellationToken);
             const string sql = @"
-                SELECT paymentid, reservationid, amount, paymentdate, method 
-                FROM payments 
+                SELECT paymentid, reservationid, amount, paymentdate, method, version AS Version
+                FROM payments
+                WHERE reservationid = @ReservationId AND isdeleted = false
                 ORDER BY paymentdate DESC";
 
-            await using var connection = new NpgsqlConnection(_connectionString);
-
-            return await connection.QueryAsync<Payment>(sql);
-        }
-
-        public async Task<int> CreateAsync(Payment entity, CancellationToken cancellationToken = default)
-        {
-            const string sql = @"
-                INSERT INTO payments (reservationid, amount, paymentdate, method)
-                VALUES (@ReservationId, @Amount, @PaymentDate, @Method)
-                RETURNING paymentid";
-
-            await using var connection = new NpgsqlConnection(_connectionString);
-
-            return await connection.QuerySingleAsync<int>(sql, new
-            {
-                entity.ReservationId,
-                entity.Amount,
-                entity.PaymentDate,
-                entity.Method
-            });
-        }
-
-        public async Task<bool> UpdateAsync(Payment entity, CancellationToken cancellationToken = default)
-        {
-            const string sql = @"
-                UPDATE payments 
-                SET reservationid = @ReservationId, 
-                    amount = @Amount, 
-                    paymentdate = @PaymentDate, 
-                    method = @Method
-                WHERE paymentid = @PaymentId";
-
-            await using var connection = new NpgsqlConnection(_connectionString);
-
-            var rowsAffected = await connection.ExecuteAsync(sql, new
-            {
-                entity.PaymentId,
-                entity.ReservationId,
-                entity.Amount,
-                entity.PaymentDate,
-                entity.Method
-            });
-
-            return rowsAffected > 0;
-        }
-
-        public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
-        {
-            const string sql = "DELETE FROM payments WHERE paymentid = @Id";
-
-            await using var connection = new NpgsqlConnection(_connectionString);
-
-            var rowsAffected = await connection.ExecuteAsync(sql, new { Id = id });
-            return rowsAffected > 0;
-        }
-
-        public async Task<IEnumerable<Payment>> GetByReservationIdAsync(int reservationId, CancellationToken cancellationToken = default)
-        {
-            const string sql = @"
-                SELECT paymentid, reservationid, amount, paymentdate, method 
-                FROM payments 
-                WHERE reservationid = @ReservationId
-                ORDER BY paymentdate DESC";
-
-            await using var connection = new NpgsqlConnection(_connectionString);
-
-            return await connection.QueryAsync<Payment>(sql, new { ReservationId = reservationId });
+            return await Connection.QueryAsync<Payment>(
+                new CommandDefinition(sql, new { ReservationId = reservationId },
+                    Transaction, cancellationToken: cancellationToken));
         }
     }
 }

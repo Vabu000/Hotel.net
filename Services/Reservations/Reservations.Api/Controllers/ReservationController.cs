@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using HotelPlatform.ServiceDefaults.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using HotelReservation.Bll.DTOs;
 using HotelReservation.Bll.Services;
 using HotelReservation.Domain.Entities;
@@ -21,6 +22,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet]
+        [RequirePermission("reservations:read")]
         [ProducesResponseType(typeof(IEnumerable<ReservationDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<ReservationDto>>> GetAllReservations(CancellationToken cancellationToken)
         {
@@ -37,6 +39,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [RequirePermission("reservations:read")]
         [ProducesResponseType(typeof(ReservationDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ReservationDto>> GetReservation(int id, CancellationToken cancellationToken)
@@ -60,6 +63,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet("{id:int}/details")]
+        [RequirePermission("reservations:read")]
         [ProducesResponseType(typeof(ReservationDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ReservationDto>> GetReservationWithDetails(int id, CancellationToken cancellationToken)
@@ -83,6 +87,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpPost]
+        [RequirePermission("reservations:create")]
         [ProducesResponseType(typeof(ReservationDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -119,6 +124,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpPut("{id:int}/status")]
+        [RequirePermission("reservations:update")]
         [ProducesResponseType(typeof(ReservationDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -160,6 +166,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [RequirePermission("reservations:delete")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -192,6 +199,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet("by-client/{clientId:int}")]
+        [RequirePermission("reservations:read")]
         [ProducesResponseType(typeof(IEnumerable<ReservationDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<ReservationDto>>> GetReservationsByClient(int clientId, CancellationToken cancellationToken)
         {
@@ -208,6 +216,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpGet("by-date-range")]
+        [RequirePermission("reservations:read")]
         [ProducesResponseType(typeof(IEnumerable<ReservationDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<IEnumerable<ReservationDto>>> GetReservationsByDateRange(
@@ -232,6 +241,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpPost("{id:int}/checkin")]
+        [RequirePermission("reservations:approve")]
         [ProducesResponseType(typeof(ReservationDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -258,6 +268,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpPost("{id:int}/checkout")]
+        [RequirePermission("reservations:approve")]
         [ProducesResponseType(typeof(ReservationDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -284,6 +295,7 @@ namespace HotelReservation.Api.Controllers
         }
 
         [HttpPost("{id:int}/cancel")]
+        [RequirePermission("reservations:approve")]
         [ProducesResponseType(typeof(ReservationDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
