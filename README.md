@@ -35,11 +35,11 @@ Set `ConnectionStrings__HotelReservationsDB` to the Reservation PostgreSQL conne
 dotnet run --project Services/Reservations/Reservations.Api/HotelReservation.Api.csproj
 ```
 
-Or run the Aspire host, which starts PostgreSQL with a persistent volume and supplies the Reservation connection string to the API:
+Or run the Aspire host, which starts PostgreSQL with a persistent volume and supplies the Reservation and Catalog connection strings to their APIs:
 
 ```powershell
 dotnet user-secrets set "Parameters:postgres-password" "<local password>" --project Platform.AppHost/HotelPlatform.AppHost.csproj
 dotnet run --project Platform.AppHost/HotelPlatform.AppHost.csproj
 ```
 
-The API exposes Swagger in Development. The `Platform.slnx` file is the solution for this repository.
+The APIs expose Swagger in Development. The `Platform.slnx` file is the solution for this repository.

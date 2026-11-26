@@ -18,5 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Services\Reservations\Reservations.Api\HotelReservation.Api.csproj" />
+    <ProjectReference Include="..\Services\Catalog\Catalog.Api\HotelCatalog.Api.csproj" />
   </ItemGroup>
 </Project>
