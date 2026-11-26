@@ -10,11 +10,11 @@ Only read methods are listed in each gRPC `ServiceConfig`. Mutating operations a
 
 | Aggregator client | Retryable methods | Maximum attempts | Backoff | Per-method timeout | Reason |
 | --- | --- | ---: | --- | ---: | --- |
-| Catalog | `GetAllServices`, `GetServiceById`, `GetRoomCategoryByRoomId`, `GetServicesByRoomCategory` | 3 | 200 ms to 1 s, multiplier 2 | 3 s | Catalog reads are cacheable; a short retry can recover a transient database/service restart. |
-| Reservation | `GetAllReservations`, `GetReservationById`, `GetReservationsByHotel`, `GetReservationsByRoom`, `GetReservationsByClient`, `GetRoomById` | 2 | 250 ms to 750 ms, multiplier 2 | 4 s | Reservation reads are important to availability; allow one bounded retry. |
+| Catalog | `GetAllServices`, `GetServiceById`, `GetRoomCategoryByRoomId`, `GetServicesByRoomCategory` | 2 | 100 to 400 ms, multiplier 2 | 3 s | Catalog enriches the response but is optional; keep its retry budget short so it cannot hold up a partial response. |
+| Reservation | `GetAllReservations`, `GetReservationById`, `GetReservationsByHotel`, `GetReservationsByRoom`, `GetReservationsByClient`, `GetRoomById` | 3 | 200 ms to 1 s, multiplier 2 | 4 s | Reservation determines room and availability data, so it gets the largest bounded retry budget. |
 | Reviews | `GetReviewsByRoom`, `GetReviewById` | 2 | 100 ms to 400 ms, multiplier 2 | 2 s | Reviews are optional to the aggregate response; keep their delay short so the aggregator can return partial data. |
 
-These method policies are in addition to the shared `HttpClientFactory` timeout/circuit settings. The HTTP standard retry does not retry non-idempotent POST requests; writes therefore do not receive the gRPC read retry policy.
+`Platform.ServiceDefaults` registers the standard HTTP resilience handler once for `HttpClientFactory` clients. The Aggregator uses gRPC `ServiceConfig` retry rules for only idempotent read methods and a per-client deadline; it does not add a second HTTP retry policy per gRPC client. Mutating gRPC operations are not retried.
 
 ## HTTP versus gRPC latency measurement
 

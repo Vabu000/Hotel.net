@@ -85,7 +85,7 @@ Collections: `reviews`, `requests`, `discussions`.
 }
 ```
 
-`roomId` and `reviewId` are references; `messages` are embedded and limited to 100 per discussion; `moderation` is flexible metadata preserved in `Discussion.AdditionalData`. The idempotent seed example is [seed.example.js](../HotelReviews.Infrastructure/Seeding/seed.example.js). It includes collection indexing, optional JSON Schema validation and an example rating aggregation:
+`roomId` and `reviewId` are references; `messages` are embedded and limited to 100 per discussion; `moderation` is flexible metadata preserved in `Discussion.AdditionalData`. The idempotent seed example is [seed.example.js](../Services/Reviews/Reviews.Infrastructure/Seeding/seed.example.js). It includes collection indexing, optional JSON Schema validation and an example rating aggregation:
 
 ```javascript
 db.reviews.aggregate([

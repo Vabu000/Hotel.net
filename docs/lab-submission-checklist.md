@@ -9,7 +9,8 @@ Use this list to check the repository against the lab requirements. The lab hand
 - [x] Reviews Clean Architecture layers, CQRS handlers, validation behaviors, explicit BSON class maps, Mongo indexes/seeding, and three Mongo collections.
 - [x] Aspire AppHost, YARP Gateway, Aggregator, OpenTelemetry, Serilog with trace fields, gRPC contracts/clients, per-client gRPC read policies, caching and health endpoints.
 - [x] Reservation service unit tests, API contract tests, Catalog model tests, and Mongo document-model tests.
-- [x] Run the full solution build and test commands locally; build succeeds with 0 errors and all 12 tests pass.
+- [x] Build `Platform.AppHost` and the separate IdentityServer project locally; both builds complete with 0 warnings and 0 errors.
+- [ ] Complete a VSTest run. The test assembly builds, but the local test runner stalls before listing or executing tests, so no passing test result is recorded for this branch.
 - [x] Apply the prior Catalog migrations and Reservation seed to fresh local databases; verified four Catalog migration IDs, Catalog tables, and one Reservation seed row. The fifth Catalog migration is included in the idempotent SQL export and will apply at service startup.
 - [ ] Capture and retain the resulting schema screenshots/SQL output for submission.
 

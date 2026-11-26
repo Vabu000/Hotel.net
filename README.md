@@ -10,7 +10,7 @@ The recommended entry point is the Aspire AppHost:
 
 ```powershell
 dotnet workload install aspire
-dotnet run --project HotelPlatform.AppHost --launch-profile http
+dotnet run --project Platform.AppHost/HotelPlatform.AppHost.csproj --launch-profile http
 ```
 
 The AppHost starts PostgreSQL, MongoDB, Redis, RabbitMQ, and the services. Aspire workload and Docker are required. The Reservation API creates `HotelReservationsDB` if needed and applies its embedded SQL files on startup; its PostgreSQL role therefore needs permission to create databases. Catalog applies its EF Core migrations. Reviews waits for MongoDB, then creates its indexes and seeds sample documents on startup.
@@ -21,21 +21,21 @@ If running a service outside Aspire, configure its connection strings in user se
 
 The service ownership, duplication policy, relational ERDs, MongoDB document examples, and database recreation order are documented in [docs/data-model.md](./docs/data-model.md). The [lab submission checklist](./docs/lab-submission-checklist.md) lists the live demos and remaining evidence to capture.
 
-Reservation schema, stored procedures, and idempotent sample data are in [HotelReservation.Dal/Database](./HotelReservation.Dal/Database). The API applies these scripts in filename order at startup. They can also be run manually with `psql` against the `HotelReservationsDB` database.
+Reservation schema, stored procedures, and idempotent sample data are in [Services/Reservations/Reservations.Dal/Database](./Services/Reservations/Reservations.Dal/Database). The API applies these scripts in filename order at startup. They can also be run manually with `psql` against the `HotelReservationsDB` database.
 
-Catalog schema changes are managed by EF Core migrations in [HotelCatalog.Dal/Migrations](./HotelCatalog.Dal/Migrations). To produce a SQL script for review or deployment, install the `dotnet-ef` tool matching the project EF Core major version, then run:
+Catalog schema changes are managed by EF Core migrations in [Services/Catalog/Catalog.Dal/Migrations](./Services/Catalog/Catalog.Dal/Migrations). To produce a SQL script for review or deployment, install the `dotnet-ef` tool matching the project EF Core major version, then run:
 
 ```powershell
-dotnet ef migrations script --idempotent --project HotelCatalog.Dal --startup-project HotelCatalog.Api --output HotelCatalog.Dal\Migrations\catalog-idempotent.sql
+dotnet ef migrations script --idempotent --project Services/Catalog/Catalog.Dal/HotelCatalog.Dal.csproj --startup-project Services/Catalog/Catalog.Api/HotelCatalog.Api.csproj --output Services/Catalog/Catalog.Dal/Migrations/catalog-idempotent.sql
 ```
 
-The checked-in [Catalog SQL export](./HotelCatalog.Dal/Migrations/catalog-idempotent.sql) is generated from those migrations. Use the script **or** the API's migration startup, not both against the same fresh database.
+The checked-in [Catalog SQL export](./Services/Catalog/Catalog.Dal/Migrations/catalog-idempotent.sql) is generated from those migrations. Use the script **or** the API's migration startup, not both against the same fresh database.
 
 `RoomCategory` has an optional one-to-one `RoomCategoryDetails` dependent record. Its primary key is also its foreign key to `roomcategories`, so a category can have at most one details record. The migration seeds example occupancy and area values.
 
 `RoomService` is the Catalog M:N join entity and stores a category-specific `AdditionalPrice` in addition to its two foreign keys. The migration and seed data include this relationship field.
 
-The Reviews API seeds its configured Mongo database at startup. An optional idempotent `mongosh` example is in [HotelReviews.Infrastructure/Seeding/seed.example.js](./HotelReviews.Infrastructure/Seeding/seed.example.js).
+The Reviews API seeds its configured Mongo database at startup. An optional idempotent `mongosh` example is in [Services/Reviews/Reviews.Infrastructure/Seeding/seed.example.js](./Services/Reviews/Reviews.Infrastructure/Seeding/seed.example.js).
 
 ## Data ownership and duplication policy
 
@@ -70,11 +70,19 @@ Shared HTTP clients use bounded timeouts, retries, and a circuit breaker. OpenTe
 
 See [docs/resilience-policies.md](./docs/resilience-policies.md) for the client policies and the HTTP/gRPC comparison procedure.
 
+Reservation data is required to determine room and availability state, so its gRPC reads get three bounded attempts and a four-second deadline. Catalog and Reviews enrich the response and may degrade independently, so they use shorter two-attempt budgets and smaller deadlines. Only read methods retry `Unavailable`; mutations are never retried. The shared standard resilience handler is registered once in ServiceDefaults for HTTP clients.
+
 ## Build and tests
 
 ```powershell
-dotnet build HotelReservationSystem.sln
-dotnet test HotelReservation.Tests\HotelReservation.Tests.csproj
+dotnet build Platform.AppHost/HotelPlatform.AppHost.csproj
+dotnet build Platform.IdentityServer/HotelAuth.IdentityServer.csproj
+dotnet test Services/Reservations/Reservations.Tests/HotelReservation.Tests.csproj
 ```
 
-The complete solution also includes the Aspire AppHost, which requires the Aspire workload for the installed .NET SDK.
+`Platform.slnx` is the solution artifact for the complete platform. The AppHost build requires the Aspire workload for the installed .NET SDK.
+
+
+## Database submission paths
+
+The lab database artifacts are also collected under db/p1, db/p2, and db/p3 for the automated submission checks. The service-local SQL files and EF migrations remain the runtime source for their respective services.
