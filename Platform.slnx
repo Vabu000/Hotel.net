@@ -9,4 +9,10 @@
     <Project Path="Services/Reservations/Reservations.Domain/HotelReservation.Domain.csproj" />
     <Project Path="Services/Reservations/Reservations.Tests/HotelReservation.Tests.csproj" />
   </Folder>
+  <Folder Name="/Services/Catalog/">
+    <Project Path="Services/Catalog/Catalog.Api/HotelCatalog.Api.csproj" />
+    <Project Path="Services/Catalog/Catalog.Bll/HotelCatalog.Bll.csproj" />
+    <Project Path="Services/Catalog/Catalog.Dal/HotelCatalog.Dal.csproj" />
+    <Project Path="Services/Catalog/Catalog.Domain/HotelCatalog.Domain.csproj" />
+  </Folder>
 </Solution>

@@ -27,11 +27,6 @@ namespace HotelCatalog.Dal.Repositories
             return await _dbSet.ToListAsync(cancellationToken);
         }
 
-        public virtual async Task AddAsync(T entity, CancellationToken cancellationToken = default)
-        {
-            await _dbSet.AddAsync(entity, cancellationToken);
-        }
-
         public virtual void Update(T entity)
         {
             _dbSet.Update(entity);

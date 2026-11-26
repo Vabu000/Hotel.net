@@ -104,57 +104,7 @@ namespace HotelCatalog.Bll.Services
         }
         public async Task<PagedResult<ServiceDto>> GetPagedAsync(ServiceQueryParameters parameters, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
-            var query = _unitOfWork.Services.FindAsync(s => true, cancellationToken);
-            var allServices = (await query).AsQueryable();
-
-            // Filtering
-            if (!string.IsNullOrEmpty(parameters.SearchTerm))
-            {
-                allServices = allServices.Where(s =>
-                    s.Name.Contains(parameters.SearchTerm, StringComparison.OrdinalIgnoreCase) ||
-                    (s.Description != null && s.Description.Contains(parameters.SearchTerm, StringComparison.OrdinalIgnoreCase)));
-            }
-
-            if (parameters.MinPrice.HasValue)
-            {
-                allServices = allServices.Where(s => s.Price >= parameters.MinPrice.Value);
-            }
-
-            if (parameters.MaxPrice.HasValue)
-            {
-                allServices = allServices.Where(s => s.Price <= parameters.MaxPrice.Value);
-            }
-
-            // Sorting
-            allServices = parameters.SortBy?.ToLower() switch
-            {
-                "name" => parameters.SortOrder?.ToLower() == "desc"
-                    ? allServices.OrderByDescending(s => s.Name)
-                    : allServices.OrderBy(s => s.Name),
-                "price" => parameters.SortOrder?.ToLower() == "desc"
-                    ? allServices.OrderByDescending(s => s.Price)
-                    : allServices.OrderBy(s => s.Price),
-                _ => allServices.OrderBy(s => s.ServiceId)
-            };
-
-            var totalCount = allServices.Count();
-
-            // Pagination
-            var items = allServices
-                .Skip((parameters.Page - 1) * parameters.PageSize)
-                .Take(parameters.PageSize)
-                .ToList();
-
-            var dtos = _mapper.Map<IEnumerable<ServiceDto>>(items);
-
-            return new PagedResult<ServiceDto>
-            {
-                Items = dtos,
-                TotalCount = totalCount,
-                Page = parameters.Page,
-                PageSize = parameters.PageSize
-            };
+            return await GetPagedWithSpecificationAsync(parameters, cancellationToken);
         }
 
 
@@ -203,5 +153,3 @@ namespace HotelCatalog.Bll.Services
         }
     }
 }
-
-  

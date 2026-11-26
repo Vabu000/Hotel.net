@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\HotelCatalog.Bll\HotelCatalog.Bll.csproj" />
-    <ProjectReference Include="..\HotelCatalog.Dal\HotelCatalog.Dal.csproj" />
+    <ProjectReference Include="..\Catalog.Bll\HotelCatalog.Bll.csproj" />
+    <ProjectReference Include="..\Catalog.Dal\HotelCatalog.Dal.csproj" />
   </ItemGroup>
 
   <ItemGroup>
